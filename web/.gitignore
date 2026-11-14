@@ -1,0 +1,8 @@
+node_modules
+dist
+# Verbatim copies made by `npm run data` from ../outputs, ../charts and ../route9_deep_analysis.py.
+# The originals in the repo root remain the single source of truth.
+public/data
+public/figures
+public/code
+# NOTE: src/data/generated/ IS committed on purpose, so a fresh clone builds without the 15 MB TIGER cache.

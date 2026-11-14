@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/source-serif-4";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4 Variable", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  --color-paper: #faf9f6;
+  --color-card: #ffffff;
+  --color-ink: #0f1b2d;
+  --color-ink-2: #344054;
+  --color-ink-3: #667085;
+  --color-rule: #e6e2d8;
+  --color-rule-2: #d3cec0;
+  --color-route: #c0001a;
+  --color-route-soft: #fdecee;
+  --color-navy: #14284b;
+  --color-navy-2: #1d3a6b;
+  --color-teal: #0f766e;
+  --color-amber: #b45309;
+  --color-amber-soft: #fef6e7;
+  --color-sky-soft: #eef4fb;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 4.5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Grid children may shrink below their content width (prevents code blocks / tables from blowing out the layout on phones). */
+  .grid > * {
+    min-width: 0;
+  }
+  ::selection {
+    background: #ffd9de;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-navy-2);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8;
+  }
+  .eyebrow {
+    @apply text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-route;
+  }
+  .h-display {
+    @apply font-serif font-semibold tracking-tight text-ink;
+  }
+  .card {
+    @apply rounded-xl border border-rule bg-card shadow-[0_1px_0_rgba(15,27,45,0.03),0_8px_24px_-16px_rgba(15,27,45,0.18)];
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-rule-2 bg-white px-3 py-1.5 text-[0.8rem] font-medium text-ink-2 transition-colors hover:border-ink-3 hover:text-ink;
+  }
+  .chip[aria-pressed="true"],
+  .chip[aria-selected="true"] {
+    @apply border-navy bg-navy text-white hover:text-white;
+  }
+  .prose-ej p {
+    @apply mb-4 leading-relaxed text-ink-2;
+  }
+  .prose-ej a {
+    @apply text-navy-2 underline decoration-navy-2/30 underline-offset-2 hover:decoration-navy-2;
+  }
+  .prose-ej h3 {
+    @apply mb-2 mt-5 font-serif text-lg font-semibold text-ink;
+  }
+  .prose-ej ul {
+    @apply mb-4 list-disc space-y-1 pl-5 text-ink-2;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

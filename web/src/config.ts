@@ -24,8 +24,8 @@ export const LINKS = {
   // ── OPTIONAL / STILL OPEN ──────────────────────────────────────────────────
   /** 1. Research paper PDF (live). File lives in web/public/paper/. */
   paperPdf: asset("paper/route9-ej-study.pdf"),
-  /** 2. GitHub repository containing route9_deep_analysis.py. e.g. "https://github.com/<user>/route9-ej-study" */
-  githubRepo: "",
+  /** 2. GitHub repository (analysis script, data, paper, and this site). */
+  githubRepo: "https://github.com/vikramangiras2027/Route_9_EJ_Study",
 
   // ── LIVE ASSETS (already wired to the workspace outputs) ───────────────────
   /** 3. Master dataset: verbatim copy of outputs/master_route9_table.csv */

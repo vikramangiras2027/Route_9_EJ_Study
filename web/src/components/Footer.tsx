@@ -1,5 +1,5 @@
 import { Mail } from "lucide-react";
-import { LINKS, SITE } from "../config";
+import { asset, LINKS, SITE } from "../config";
 import { NAV_ITEMS } from "./Nav";
 
 export function Footer() {
@@ -8,7 +8,7 @@ export function Footer() {
       <div className="container-page grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-2.5">
-            <img src="./favicon.svg" alt="" className="h-8 w-8" />
+            <img src={asset("favicon.svg")} alt="" className="h-8 w-8" />
             <p className="font-serif text-lg font-semibold text-white">{SITE.shortTitle}</p>
           </div>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-400">

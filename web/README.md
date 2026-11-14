@@ -73,9 +73,15 @@ export const SITE = {
 - **Data dictionary:** `src/data/dictionary.ts` (one entry per CSV column).
 - **License:** add a root `LICENSE` before publishing (e.g. MIT for code, CC BY 4.0 for data/figures).
 
-## Deploying
+## Deploying (GitHub Pages)
 
-`vite build` writes a fully static site to `web/dist` with relative asset paths (`base: "./"`), so it works on GitHub Pages (project sites), Netlify, Vercel, S3, or a university web folder without configuration.
+This is a **Vite + React** app in `web/`, not a plain HTML site. GitHub Pages cannot serve the repo root as-is (there is no root `index.html`); the site must be **built** first.
+
+1. In the repo: **Settings → Pages → Build and deployment → Source → GitHub Actions** (not “Deploy from a branch”).
+2. Push to `main`. The workflow `.github/workflows/deploy.yml` runs `npm ci` + `npm run build` in `web/` and publishes `web/dist`.
+3. Site URL: `https://vikramangiras2027.github.io/Route_9_EJ_Study/`
+
+Local / non-Pages builds still use `base: "./"`. CI sets `GITHUB_PAGES=1` so Vite uses `base: "/Route_9_EJ_Study/"`.
 
 ## Project layout
 

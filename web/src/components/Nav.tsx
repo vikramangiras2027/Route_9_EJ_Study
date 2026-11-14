@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Menu, X } from "lucide-react";
-import { LINKS, SITE } from "../config";
+import { asset, LINKS, SITE } from "../config";
 import { GithubIcon as Github } from "./ui";
 
 export const NAV_ITEMS = [
@@ -47,7 +47,7 @@ export function Nav() {
     >
       <div className="container-page flex h-14 items-center justify-between gap-4">
         <a href="#top" className="flex items-center gap-2.5 text-ink">
-          <img src="./favicon.svg" alt="" className="h-7 w-7" />
+          <img src={asset("favicon.svg")} alt="" className="h-7 w-7" />
           <span className="font-serif text-[1.05rem] font-semibold tracking-tight">{SITE.shortTitle}</span>
         </a>
 

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local data inputs (ACS CSV, EJ DBF, traffic.csv, PM2.5 export — not redistributable as a bundle)
+data.environment/
+
+# Reproducible caches (re-fetch with fetch_massdot_traffic_aadt.py; TIGER zips download on first analysis run)
+cache/
+
+# Generated advisory-style export (not published with this project)
+outputs/advisory_brief.md
+
+# Internal notes
+WEB_TODO.md
+
+# Node / Vite
+web/node_modules/
+web/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

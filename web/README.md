@@ -12,7 +12,7 @@ A static React + Tailwind site (no backend, no tracking) that reads the analysis
 | Air quality hub | PM2.5 vs WHO / EPA benchmarks, exceedances, seasonality, monitors, Figure 2 |
 | Evidence | Forest plot of Spearman correlations with cluster-bootstrap CIs, corridor tests, robustness tables |
 | Methodology & code | Six-step pipeline, key parameters, reproduce commands, data sources, limitations |
-| Resources | Paper PDF, dataset download, GitHub placeholder, abstract, citation, data dictionary |
+| Resources | Paper PDF, dataset download, repository link, abstract, citation, data dictionary |
 
 ## Quick start
 

@@ -49,8 +49,17 @@ for (const f of ["figure1_income_traffic_ej.png", "figure2_pm25_distribution.png
   copy(path.join(ROOT, "charts", f), path.join(PUB, "figures", f));
 }
 copy(path.join(ROOT, "route9_deep_analysis.py"), path.join(PUB, "code", "route9_deep_analysis.py"));
+copy(path.join(ROOT, "fetch_massdot_traffic_aadt.py"), path.join(PUB, "code", "fetch_massdot_traffic_aadt.py"));
 const summaryTxt = path.join(ROOT, "outputs", "summary_statistics.txt");
 if (fs.existsSync(summaryTxt)) copy(summaryTxt, path.join(PUB, "data", "summary_statistics.txt"));
+for (const [rel, dest] of [
+  ["outputs/data_dictionary.md", ["data", "data_dictionary.md"]],
+  ["outputs/tract_table_route9.csv", ["data", "tract_table_route9.csv"]],
+  ["charts/figure3_priority_hotspots.png", ["figures", "figure3_priority_hotspots.png"]],
+]) {
+  const from = path.join(ROOT, rel);
+  if (fs.existsSync(from)) copy(from, path.join(PUB, ...dest));
+}
 
 /* ------------------------------------------------------------------ */
 /* 2. Block-group table                                                  */
@@ -98,6 +107,15 @@ const blockGroups = rows.map((r) => {
     areaKm2: num(r.area_km2, 2),
     lat: num(r.centroid_lat, 5),
     lon: num(r.centroid_lon, 5),
+    // --- added in the measured-traffic / Worcester-primary refactor ---
+    vulnerability: num(r.vulnerability_index, 1),
+    vulnQuintile: r.vuln_quintile,
+    priorityHotspot: bool(r.priority_hotspot),
+    priorityRank: num(r.priority_rank, 0),
+    nearestSegmentAadt: num(r.nearest_segment_aadt, 0),
+    nearestSegmentAadtYear: num(r.nearest_segment_aadt_year, 0),
+    estHouseholds: num(r.est_households, 1),
+    estHhWithin500m: num(r.est_hh_within_500m, 1),
   };
 });
 
@@ -142,23 +160,26 @@ const slopePerKm = pearson(withInc.map((b) => b.distM / 1000), withInc.map((b) =
 const corridor = blockGroups.filter((b) => b.corridor);
 const corridorEj = corridor.filter((b) => b.ej).length;
 const hotspots = blockGroups.filter((b) => b.hotspot).length;
+const priorityHotspots = blockGroups.filter((b) => b.priorityHotspot);
 const bandMedian = (label) => median(blockGroups.filter((b) => b.band === label).map((b) => b.income));
 
 const checks = [
   ["block groups", blockGroups.length, 166, 0],
   ["corridor block groups", corridor.length, 81, 0],
   ["corridor EJ block groups", corridorEj, 78, 0],
-  ["cumulative-burden hotspots", hotspots, 33, 0],
+  ["legacy CBI hotspots", hotspots, 33, 0],
   ["Spearman rho (distance, income), n=164", rho, 0.47, 0.005],
   ["OLS income slope $/km", slopePerKm, 10651, 1],
   ["median income <=0.5 km", bandMedian("<=0.5 km"), 41667, 1],
   ["median income >4 km", bandMedian(">4 km"), 99932, 1],
-  ["AADT", rows[0].aadt_station, 28112, 0],
+  ["AADT (M3002W anchor, legacy)", rows[0].aadt_station, 28112, 0],
   ["EJ residents within 300 m", sum(blockGroups.map((b) => b.ejPop300)), 28786, 3],
   ["EJ residents within 500 m", sum(blockGroups.map((b) => b.ejPop500)), 47144, 3],
   ["EJ residents within 1000 m", sum(blockGroups.map((b) => b.ejPop1000)), 81149, 3],
-  ["EJ residents in hotspots", sum(blockGroups.filter((b) => b.hotspot).map((b) => b.pop)), 42805, 0],
+  ["EJ residents in legacy CBI hotspots", sum(blockGroups.filter((b) => b.hotspot).map((b) => b.pop)), 42416, 0],
   ["EJ residents in study area", sum(blockGroups.map((b) => b.pop)), 217466, 0],
+  ["priority hotspots (traffic-independent)", priorityHotspots.length, 27, 0],
+  ["EJ residents in priority hotspots", sum(priorityHotspots.map((b) => b.pop)), 34339, 0],
 ];
 let failed = 0;
 for (const [label, got, want, tol] of checks) {

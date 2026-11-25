@@ -1,224 +1,306 @@
-Data folder : C:\Users\vikra\OneDrive\Desktop\data.environment
-Script root : C:\Users\vikra\.cursor\Environmental_Studies
+====================================================================================================
+CHANGELOG (headline changes versus the previous release)
+====================================================================================================
+Method / framing changes:
+  - Traffic basis: one station (M3002W, 28,112) applied to the whole centreline -> measured MassDOT LRS AADT per Route 9 segment (13,461-45,937 veh/day); exposure_index is now nearest-segment AADT x exp(-d/300 m); the old model is kept as legacy_exposure_index for one release.
+  - Narrative is Worcester-first, Shrewsbury is a sensitivity section; household-weighted pooled incomes replace block-group medians as the headline summary.
+  - Headline traffic-independent measure: vulnerability_index / priority_hotspot (new); CBI and `hotspot` are retained but flagged as partly built-in.
+  - Figure 1 reworked (Worcester map + Shrewsbury panel, measured AADT, stations, tract scatter); Figure 2 shortened to a PM2.5 appendix; Figure 3 added.
+Headline numbers that MOVED:
+  - EJ residents in legacy CBI hotspots: 42,805 -> 42,416
+  - mean exposure_index (veh/day-equivalent): 3,504 -> 2,817
+Headline numbers UNCHANGED (geometry / income inputs are identical):
+  - legacy CBI hotspot block groups: 33 -> 33
+  - corridor block groups: 81 -> 81
+  - EJ residents within 300 m: 28,786 -> 28,786
+  - EJ residents within 500 m: 47,144 -> 47,144
+  - EJ residents within 1 km: 81,149 -> 81,149
+  - pooled rho(distance, income): +0.47 -> +0.47
+  - pooled OLS income slope: $10,651/km -> $10,651/km
 
 ====================================================================================================
-1. DATA INTEGRATION, INSPECTION & CLEANING
+1. EXECUTIVE SUMMARY
 ====================================================================================================
+ 1. Measured traffic now drives the corridor picture: MassDOT segment AADT covers all 17.7 km of Route 9 in Worcester + Shrewsbury (98% of length is 2023-2025 data). All 8 on-route count stations got an AADT (4 via LRS station ID and milepost, 4 by spatial match); the Statn_Num join named in the brief matched none, because that field is empty.
+ 2. Loading ranges 13,461-45,937 veh/day (length-weighted mean 28,373); 44% of the corridor carries >= 30k and it rises from Worcester (mean 20,646) to Shrewsbury (mean 40,615). The old single value (28,112, M3002W) is +5.5% against the MassDOT segment at that milepost but misstates both ends.
+ 3. The 75% westbound skew (20,962 WB vs 7,148 EB) is one station's count, not a corridor property.
+ 4. Who lives near: about 28,786 EJ-designated residents (13%) live within 300 m, 47,144 (22%) within 500 m and 81,149 (37%) within 1 km of Route 9; households within 500 m ~17,275 (18% of all in the two towns).
+ 5. The busiest stretches are not beside the lowest-income neighbourhoods: ~8,633 EJ residents / ~3,652 households live within 500 m of segments carrying >= 30k veh/day (median income $115,291), mostly at the Shrewsbury end; in Worcester only 957 EJ residents do, while its low-income corridor neighbourhoods sit beside 14k-28k segments.
+ 6. Worcester (primary): household-weighted median income is $56,458 in the corridor vs $82,432 in the rest of the city; 46% vs 31% of households earn under $50k.
+ 7. Within Worcester, tract income rises with distance from Route 9 (rho = +0.48, tract-bootstrap 95% CI [+0.17, +0.72], n = 44 tracts); with town fixed effects the slope is +$11,243/km (CI +$6,609 to +$15,876). Moran's I ~0.73, so intervals use cluster / tract bootstrap.
+ 8. EJ designation: 97% of Worcester corridor block groups vs 88% elsewhere in the city (odds ratio 4.6, p=0.058); high everywhere, with only a suggestive (not conclusive) edge near the road.
+ 9. Shrewsbury is a sensitivity case: 11 corridor block groups in 5 tracts, tract median income $134,585; pooling both towns (tract rho +0.41) vs Worcester alone (+0.48) changes the gradient little, but adds the highest-volume stretch with comparatively few nearby residents.
+10. Without any traffic term, 27 corridor block groups (34,339 EJ residents; 27 in Worcester) rank in the top vulnerability quintile (rho with distance -0.45); the legacy CBI's distance link (-0.75) is partly built in.
+11. PM2.5 is regional only: 2025 mean 5.65 ug/m3 (below the 9 federal annual standard, above the WHO 5 guideline), no day above the federal 24-h standard; monitors 23 km apart move together (rho 0.95); there is no roadside monitor on Route 9.
+12. Results are neighbourhood-scale associations; near-road exposure is modelled, populations are interpolated, and nothing here shows individual exposure, health effects or causation.
+
+Recommended next steps for the advisory group:
+  a. Commission near-road PM2.5 / NO2 (or UFP) monitoring on the >= 30k stretches and beside priority block groups; ambient county monitors cannot answer the corridor question.
+  b. Ask MassDOT for classification counts with truck share and directional volumes at M3002W-class stations to verify the westbound skew and refresh older (pre-2023) segments.
+  c. Treat Worcester as the primary equity case; review the priority block-group list (Figure 3, tract table) with neighbourhood groups before any targeting decision.
+  d. Fill the population gap (decennial / ACS block-group population for non-EJ block groups) so near-road counts cover everyone, not only EJ-designated residents.
+  e. Pair this analysis with tract health outcomes (e.g., asthma ED visits) if the group wants evidence on effects rather than proximity.
+  f. Re-run annually (fetch_massdot_traffic_aadt.py --refresh) as MassDOT updates AADT vintages.
+
+====================================================================================================
+2. WHO LIVES NEAR ROUTE 9
+====================================================================================================
+Distance = block-group area (50 m grid) to the TIGER Route 9 centreline. Two population bases are used because neither alone is complete:
+  EJ residents  = MassGIS EJ_POLY population, EJ-designated block groups only (the DBF omits the 17 non-EJ block groups, so this undercounts, mostly in Shrewsbury).
+  Households    = ACS 2024 tract households shared across block groups (EJ-table households as shares) -> covers every block group.
+Both are areal interpolations (uniform density inside a block group). Income is the household-weighted pooled median built from ACS S1901 bracket shares, not a median of block-group values.
+
+                 scope   buffer  EJ_residents  %_of_EJ_pop  households  %_of_hh  median_inc_in  median_inc_beyond  %hh<50k_in  %hh<50k_beyond  %minority_in  %minority_beyond  %LEP_in  %LEP_beyond
+             Worcester  <=300 m         24107         12.7        8649     10.9          47247              72661        52.2            36.1          57.5              53.2     13.0         11.3
+             Worcester  <=500 m         39468         20.8       14113     17.8          49051              74470        50.8            35.0          58.2              52.6     13.3         11.1
+             Worcester <=1000 m         67829         35.7       25868     32.5          53248              78849        47.9            33.0          59.3              50.6     13.8         10.3
+Worcester + Shrewsbury  <=300 m         28786         13.2       10573     11.2          56223              80773        46.3            32.9          55.6              51.8     12.0         10.5
+Worcester + Shrewsbury  <=500 m         47144         21.7       17275     18.3          58083              82837        45.1            32.0          56.2              51.2     12.3         10.3
+Worcester + Shrewsbury <=1000 m         81149         37.3       31432     33.4          61703              87071        42.9            30.2          56.9              49.5     12.5          9.6
+   (% minority and % LEP are population-weighted over EJ-designated block groups only; income and households cover all block groups.)
+
+Residents within 500 m by the measured AADT of the adjacent Route 9 segment (nearest MassDOT segment to each 50 m cell):
+                 scope adjacent_AADT  EJ_residents  households  median_income  %hh<50k
+             Worcester          <20k         27512        9343          47467     51.8
+             Worcester        20-30k         10999        4280          49503     50.5
+             Worcester         >=30k           957         490          77822     33.8
+Worcester + Shrewsbury          <20k         27512        9343          47467     51.8
+Worcester + Shrewsbury        20-30k         10999        4280          49503     50.5
+Worcester + Shrewsbury         >=30k          8633        3652         115291     21.9
+
+Corridor block groups (centroid <= 1.5 km) by AADT of their nearest Route 9 segment:
+                      block_groups  ej_bgs  ej_residents  households
+nearest_segment_aadt                                                
+<20k                            47      45         58834       23294
+20-30k                          20      20         24778       10110
+>=30k                           14      13         24971       11011
+
+====================================================================================================
+3. TRAFFIC ALONG THE CORRIDOR
+====================================================================================================
+Provenance (all fetched by fetch_massdot_traffic_aadt.py; raw pulls cached in cache/massdot/, re-run is idempotent):
+  lrs_traffic_segment   https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/57
+  lrs_traffic           https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/56
+  lrs_traffic_station   https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/2
+  yearend_2024          https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/TrafficInventoryYearEnd/FeatureServer/1
+  stations              https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/TrafficCountLocations/FeatureServer/0
+  query envelope (WGS84): (-71.99, 42.14, -71.55, 42.42); records pulled: Traffic(56)=13,936, Traffic_Segment(57)=19,107, Traffic_Station(2)=868, YearEnd 2024=27,159, count-station points (county)=1,297
+
+Join results (requested path first, then what the data actually supports):
+  STATION_NUMBER <-> Traffic_Segment.Statn_Num (layer 57): Statn_Num is populated in 0 of 19,107 pulled records -> 0 stations matched.
+  Layer 57 StationID is populated for 414 records (none on Route 9); AADT present on 3,604 records (Route 9: 52 of 102 segments, 2017 vintage) -> layer 57 is used only as a segment fallback.
+  Working path (tier T2): count-station STATION_NUMBER -> RoadInventoryLRS/2 StationID (route + milepost) -> RoadInventoryLRS/56 Traffic segment covering that milepost.
+  Spatial tier (T3, on-Route-9 stations only): nearest Route 9 segment within 50 m. Station counts as ON Route 9 if it is within 50 m of the TIGER centreline AND its road name (ROUTE_STREET, else STATION_LOC, before any 'north/south/east/west of' clause) is Route 9; ramps excluded.
+  Count stations in Worcester + Shrewsbury: 322 rows (239 distinct STATION_NUMBERs; 1 rows without a number; 82 repeated IDs). Rows with an AADT by any tier: 62 (19%); by tier: {'none': 260, 'T2': 53, 'T1b': 5, 'T3': 4}.
+  Stations ON Route 9: 12 rows = 8 distinct stations; with AADT 8 -> join rate 100% (tiers: {'T2': 4, 'T3': 4}).
+
+Count stations on Route 9 (west to east; AADT from the LRS segment at the station's milepost, MassDOT vintage in AADT_Year):
+ station                    road       town  milepost    AADT  AADT_year   join  dist_to_centreline_m
+ 2018143    Main Street (Rte. 9)  Worcester     92.54 15333.0     2021.0     T3                   2.7
+ 2018145    Main Street (Rte. 9)  Worcester     93.17 16221.0     2024.0     T3                   0.3
+ 2018122 Highland Street (Rt. 9)  Worcester     96.26 13461.0     2018.0     T3                   0.1
+  M3002W    Route 9 / Belmont St  Worcester     97.20 28112.0        NaN anchor                   0.2
+    3150     RTE. 9(BELMONT ST.)  Worcester     97.22 26659.0     2024.0     T2                   0.9
+    3310                 RTE.  9  Worcester     97.86 19654.0     2025.0     T2                   8.3
+33110304                   rte 9  Worcester     98.96 32299.0     2025.0     T3                  11.7
+    3311                 RTE.  9  Worcester     99.03 32962.0     2024.0     T2                   1.0
+    3124                 RTE.  9 Shrewsbury     99.42 35481.0     2023.0     T2                   0.9
+
+Anchor check, M3002W (traffic.csv 28,112 veh/day):
+  In the LRS it is station M3002W on SR9 EB at milepost 97.20 (RoadInventoryLRS/2), beside count station 3150 'RTE. 9 (BELMONT ST.)' (same road; the two point locations are 270 m apart). TrafficCountLocations STATION_NUMBER 3002 is NOT this station (it is a Route 12/202 site in Winchendon / Route 395 in Webster), so the M3002W ID cannot be joined to count-station points directly; the anchor is added as its own station.
+  Layer-56 segment at that milepost: 26,659 (2024); adjacent segments 26,158-28,463. traffic.csv is +5.5% vs the containing segment -> anchor and segment AADT agree within a few percent.
+
+Corridor AADT along Route 9 (SR9 EB), Worcester + Shrewsbury, 156 segments clipped to town limits:
+     scope   km  AADT_mean(len-wtd)  median   p10   p90   min   max  %km_<20k  %km_20-30k  %km_>=30k
+ Worcester 10.8               20646   18969 15665 28368 13461 34260        63          29          8
+Shrewsbury  6.8               40615   40631 36141 45282 34260 45937         0           0        100
+    Pooled 17.7               28373   25573 16258 43130 13461 45937        39          18         44
+  Vintage (share of corridor length by MassDOT AADT_Year): 2018: 0%, 2021: 1%, 2023: 0%, 2024: 36%, 2025: 61% -> 98% is 2023-2025 data.
+  Older than 2023: 3 clipped segments, 0.34 km (AADT_Year 2018-2021, AADT 13,461-15,333); the corridor minimum 13,461 is one of them, so treat it as a lower-confidence value.
+  Fallbacks: 0 of 208 Route 9 segments lacked a layer-56 AADT; filled from layer 57: 0; from the traffic.csv anchor: 0. Source mix: {'LRS Traffic (layer 56)': 208}.
+  AADT profile: lowest 13,461, highest 45,937 (milepost 103.3, Shrewsbury); AADT increases roughly west to east, so a single station misstates both ends of the corridor (-52% to +63% vs the 28,112 anchor).
+
+Directional skew: M3002W reports WB 20,962 vs EB 7,148 (74.6% westbound, 2.9:1; EB+WB differs from AADT by 2 veh/day, rounding).
+  This is a single-station observation. The LRS Traffic layer has directional AADT (AADT_P_Dir) on 0 of 208 Route 9 segments and a design directional factor D_Factor = {52: 204, 51: 4} (share of design-hour flow in the peak direction), i.e. near-even. Do not treat the 75% WB skew as a corridor property.
+
+Modelled exposure (disclaimer): block-group traffic is NOT measured. Measured quantities are the AADT on Route 9 segments and the residents living within a stated distance.
+  Primary exposure_index = AADT of the nearest MassDOT segment x exp(-d / 300 m), averaged over each block group on a 50 m grid (method 'segment_nearest_lrs_aadt_d300'). Chosen over a multi-station sum because a sum depends on how many stations happen to exist (clustered at Belmont St) and double counts; segments give continuous, vintage-stamped coverage of all 208 stretches.
+  Sensitivity: exposure_index_d150 (e-folding 150 m). Legacy: legacy_exposure_index = 28,112 x exp(-d/300 m), kept one release.
+  Rank agreement across block groups: primary vs legacy rho = 0.994; primary vs d150 rho = 0.997. Spearman with distance: primary -0.975, legacy -0.986 -> both mostly restate distance; any near/far contrast in 'exposure' is largely by construction.
+  What the segment AADT adds: it ranks corridor block groups by the traffic actually carried next to them (corridor block-group nearest-segment AADT: median 19,701, range 13,732-44,706); mean primary exposure 2,817 vs 3,504 under the legacy model (prior release 3,504).
+
+====================================================================================================
+4. EQUITY - WORCESTER (PRIMARY)
+====================================================================================================
+Worcester: 146 block groups in 46 tracts (44 with an ACS income estimate; 5 with CV>30%); corridor = centroid <= 1.5 km -> 70 block groups; 25 tracts have most of their block groups in it. Block-group incomes repeat their parent tract's ACS value, so tract-level results are primary and block-group n is overstated.
+
+A. Corridor vs rest of Worcester (household-weighted; ACS S1901 bracket pooling)
+                         metric       corridor rest of Worcester
+              households (est.)         35,920            43,581
+ pooled median household income        $56,458           $82,432
+            % households < $50k           45.9              31.2
+          % households >= $150k           11.8              22.9
+tracts: median of tract medians $53,490 (n=24)    $82,060 (n=20)
+     EJ-designated block groups    68/70 (97%)       67/76 (88%)
+         EJ residents (EJ_POLY)         88,977           100,825
+    EJ criteria met, mean (0-3)           1.80              1.33
+   Tract-level Mann-Whitney on median income: p=0.035, Cliff's delta -0.38. EJ share corridor vs rest: odds ratio 4.6 (Fisher exact p=0.058).
+   Pooled corridor median is 54% of the statewide median ($103,960); rest of Worcester 79%.
+
+B. Income vs distance to Route 9, Worcester only (primary spatial result)
+   Tract level (n=44; each tract one observation): Spearman rho = +0.480 (p<0.001), tract bootstrap 95% CI [+0.17, +0.72]; OLS +$9,244 per km (bootstrap CI +$3,252 to +$14,794).
+   Block-group level (n=144; tract values repeated, so naive p is overstated): rho = +0.568, tract-cluster bootstrap 95% CI [+0.28, +0.74]; OLS +$10,926/km (R2=0.28).
+   EJ designation vs distance (block groups): rho = -0.151 (p=0.070 naive), cluster CI [-0.29, -0.00].
+   Municipality-aware check (both towns, town fixed effects, tract-clustered CI): block groups +$11,243 per km [+$6,609, +$15,876] (n=164, 52 tracts); tracts +$10,669 per km [+$4,963, +$16,375] (n=52). Pooled OLS without town effects: +$10,651 per km.
+   Spatial autocorrelation, Moran's I of log income (queen contiguity, 999 permutations): all block groups 0.73 (p=0.001); Worcester block groups 0.67; tracts 0.40 (p=0.001). Strong clustering shrinks the effective sample, so the cluster / tract bootstrap CIs above (not the naive p) carry the inference.
+
+C. Sensitivity to the corridor definition (Worcester block groups, household-weighted)
+ corridor  n_bg  households  %EJ_in  %EJ_out  median_in  median_out    gap  %hh<50k_in  %hh<50k_out
+ <= 500 m    28       12194     100       91      45360       74777 -29417        53.7         34.9
+<= 1000 m    54       25454      98       89      52145       79581 -27437        48.6         32.8
+<= 1500 m    70       35920      97       88      56458       82432 -25974        45.9         31.2
+<= 2000 m    85       43386      94       90      61060       81569 -20509        43.1         31.5
+<= 3000 m   112       58054      94       88      62936       92059 -29123        41.5         27.8
+
+D. Tract table, Worcester tracts in the corridor (full table: outputs/tract_table_route9.csv)
+  tract  block_groups  households  acs_median_income  income_reliable  pct_hh_under_50k  dist_m  nearest_segment_aadt  ej_bgs  ej_residents  priority_bgs
+7316.02             2         351              26458            False              62.6     240                 17825       2          3267             2
+7312.03             4        2440              26054             True              66.6     263                 18680       4          6090             4
+7316.01             5        2085              39835            False              53.1     319                 16546       5          4812             5
+7331.02             2         970              94167             True              23.4     369                 16336       2          2708             0
+7312.02             1           0               <NA>            False               NaN     375                 18784       1          1375             0
+7318.01             2        1449              50602             True              49.6     430                 20941       2          2825             1
+7318.02             4        1687              36560             True              68.6     442                 25626       4          4118             3
+   7314             5        1970              41667            False              55.5     470                 19627       5          5197             5
+   7315             5        2186              33101             True              66.6     480                 18491       5          5443             3
+   7319             4        2469              52011             True              41.6     582                 24395       4          6351             0
+7312.04             2         857              54970             True              44.6     592                 18091       2          2531             0
+7311.02             3        1338             121154             True              18.3     607                 19431       3          2857             0
+7311.01             4        1590              61522             True              42.2     698                 18610       4          4527             0
+   7317             3        2070              51524             True              47.6     828                 23460       3          4059             0
+7322.01             2        1521              77956             True              33.8     854                 32869       2          3264             0
+7308.02             2         846             128452             True              19.3     915                 15846       1          1336             0
+   7313             3        1778              43025             True              58.9     947                 19101       3          4423             3
+7310.02             4        2733              48262            False              51.1     977                 16890       4          7081             1
+7331.01             2         977              90375             True              24.3    1101                 17173       2          2273             0
+7322.03             3        1415              75472             True              32.1    1144                 22773       3          3212             0
+7322.02             2        1561              92961             True              29.3    1205                 26075       2          3683             0
+7320.02             3        1735              85905             True              33.8    1314                 27074       3          4348             0
+   7330             3        1561              50608             True              48.8    1437                 18674       3          4273             0
+7309.01             3        1625             102019             True              23.2    1476                 17679       1          1538             0
+7304.02             2         693              71066             True              35.1    1616                 22975       2          2066             0
+
+E. Priority hotspot table, Worcester (top-quintile traffic-independent vulnerability inside the corridor; see Section 6)
+   27 Worcester block groups; 34,339 EJ residents; 13,565 est. households
+ rank  tract-bg  EJ_pop  EJ_pop_500m  tract_income  %hh<50k                       ej_criteria_desc  dist_m  adj_AADT  vuln
+    1 7312.03-3    1675         1675         26054     66.6 Minority, income and English isolation     212     19161  97.6
+    2 7316.02-2    2253         1970         26458     62.6 Minority, income and English isolation     272     16373  96.7
+    3 7318.02-2    1500         1500         36560     68.6 Minority, income and English isolation     238     27636  93.6
+    4 7318.02-4     733          539         36560     68.6 Minority, income and English isolation     463     24430  93.6
+    5    7314-1     898            0         41667     55.5 Minority, income and English isolation    1005     19924  90.7
+    6    7314-2     906            0         41667     55.5 Minority, income and English isolation     787     19701  90.7
+    7    7313-2    1409            0         43025     58.9 Minority, income and English isolation     885     19161  89.5
+    8 7318.01-2    1862          978         50602     49.6 Minority, income and English isolation     490     20565  86.9
+    9 7312.03-1    1793         1793         26054     66.6                    Minority and income     180     18112  85.8
+   10 7312.03-2    1616         1616         26054     66.6                    Minority and income     194     18719  85.8
+   11 7312.03-4    1006          393         26054     66.6                    Minority and income     523     19237  85.8
+   12 7316.02-1    1014         1014         26458     62.6                    Minority and income     156     21677  84.9
+   13    7315-2    1136          690         33101     66.6                    Minority and income     457     16258  83.2
+   14    7315-3    1418           46         33101     66.6                    Minority and income     696     18280  83.2
+   15    7315-1     731            0         33101     66.6                    Minority and income     973     18280  83.2
+
+====================================================================================================
+5. SHREWSBURY (SENSITIVITY)
+====================================================================================================
+Sensitivity only: Route 9 crosses Shrewsbury for a short stretch, corridor block groups are few and tract incomes are high, so it is reported separately and not pooled into the primary equity result.
+  20 block groups in 8 tracts; corridor: 11 block groups in 5 tracts; EJ-designated 14/20 overall and 10/11 in the corridor.
+  Tract median income $93,571-$188,125 (median $134,585); household-weighted pooled median: corridor $126,980 (18.5% of households < $50k) vs rest of Shrewsbury $166,499.
+  buffer  households  %_of_town_hh  median_income  %hh<50k  EJ_residents
+ <=300 m        1924          13.1         122878     19.9          4679
+ <=500 m        3162          21.5         122743     20.0          7676
+<=1000 m        5564          37.8         124474     19.4         13320
+  (EJ residents undercount Shrewsbury: only EJ-designated block groups carry a population in the EJ table; use households.)
+  Tract level income vs distance, Shrewsbury only: rho = +0.88 (p=0.004, n=8 tracts: too few for stable inference).
+  Does pooling change the story? tract-level rho: Worcester only +0.48 (n=44); both towns +0.41 (n=52). Shrewsbury's corridor tracts are high-income (pooled median $126,980 vs Worcester's corridor), which dilutes the pooled gradient; the town-fixed-effects slope in Section 4 removes that town divide.
+  Adjacent measured AADT (nearest Route 9 segment): Shrewsbury block-group median 39,768 vs Worcester 19,542. The highest-volume stretch is in Shrewsbury; 0 Shrewsbury block groups are priority hotspots (Section 6).
+
+====================================================================================================
+6. VULNERABILITY WITHOUT TRAFFIC
+====================================================================================================
+Vulnerability index (0-100) = mean percentile rank of (a) low tract income and (b) EJ criteria met (0-3), pooled across all 166 block groups. It contains no traffic term, so its relationship with distance to Route 9 is an observation, not a construction.
+Priority hotspot = top quintile of the vulnerability index AND inside the 1.5 km corridor (columns vulnerability_index, vuln_quintile, priority_hotspot, priority_rank).
+    scope   n  rho(distance, vulnerability) cluster 95% CI naive p
+Worcester 144                        -0.534 [-0.69, -0.30] p<0.001
+   Pooled 164                        -0.449 [-0.61, -0.20] p<0.001
+
+How much of the legacy cumulative burden index (CBI) contrast is built in? Spearman with distance to Route 9, pooled:
+   traffic exposure percentile (p_traffic)    rho = -0.975
+   low-income percentile                      rho = -0.470
+   EJ-criteria percentile                     rho = -0.342
+   vulnerability index (no traffic)           rho = -0.449
+   cumulative burden index (incl. traffic)    rho = -0.755
+   -> the traffic term is a function of distance (rho -0.97), so CBI's correlation with distance (-0.75) is partly by construction; the traffic-independent vulnerability index (-0.45) is the cleaner statement.
+
+By distance band (pooled block groups):
+           block_groups  mean_vulnerability  pct_in_vuln_Q5  pct_EJ  mean_EJ_criteria  households
+dist_band                                                                                        
+<=0.5 km             32                67.2            46.9   100.0               1.8     15023.5
+0.5-1 km             29                61.0            31.0    96.6               1.8     15496.6
+1-2 km               37                46.6            13.5    83.8               1.4     22834.4
+2-4 km               53                42.8             7.5    84.9               1.2     30511.9
+>4 km                15                31.1             0.0    86.7               1.1     10342.7
+
+Priority hotspots: 27 block groups (27 Worcester, 0 Shrewsbury); 34,339 EJ residents (15.8% of the study EJ population); 18,427 EJ residents within 500 m of Route 9; median adjacent AADT 19,237.
+  Legacy CBI hotspots (top-quintile CBI inside the corridor): 33 block groups, 42,416 EJ residents (prior release 33 / 42,805); 24 block groups are in both lists.
+
+====================================================================================================
+7. REGIONAL AIR QUALITY (CONTEXT ONLY, NOT CORRIDOR-SPECIFIC)
+====================================================================================================
+Context only. EPA AQS daily PM2.5, 2025-01-01 to 2025-12-31: 705 site-days at 2 Worcester County monitors.
+DATA GAP: there is no roadside or near-road PM2.5 monitor on Route 9; the monitors below are the only county ambient data and cannot resolve a Route 9 gradient. The nearest (Worcester Summer Street) is 0.9 km from the road, beyond the 300 m near-road zone used in this study.
+                monitor  days  annual_mean vs_NAAQS_9 vs_WHO_5  p98  max  days>35  days>15(WHO)  km_to_Route9
+Worcester Summer Street   358         5.76      meets  exceeds 17.9 32.9        0            12           0.9
+               Uxbridge   347         5.49      meets  exceeds 18.7 33.5        0            11          20.5
+All monitors: mean 5.65 ug/m3, p98 18.2, max 33.5; days above federal 24-h standard 0 of 705; above WHO 24-h guideline 23 (3.3%, 14 distinct dates, 100% in June-August).
+Monitors 23 km apart move together (Spearman 0.95 on common days): episodes are regional, not attributable to Route 9. Single-year screen only; NAAQS compliance uses 3-year design values.
+
+====================================================================================================
+8. LIMITATIONS
+====================================================================================================
+- Traffic exposure at block groups is modelled (distance decay from segment AADT, not measured). AADT is annual average, both directions, with no truck share, grade, lane geometry or wind; vintages are mostly 2024-2025 but some segments are older (see Section 3).
+- The corridor centreline is the Census TIGER 'State Rte 9' line; MassDOT segments are matched to it within a few metres. Only Route 9 is modelled: I-290, I-190, I-495 and cross streets are not, so block groups near them are not marked as exposed.
+- Count-station IDs are inconsistent (blank and repeated numbers, M3002W does not equal STATION_NUMBER 3002); stations are used for validation and context, segment AADT drives the model.
+- The WB 75% skew belongs to one station and is not generalised.
+- Population: EJ_POLY gives residents only for the 149 EJ-designated block groups; non-EJ block-group populations are unknown (EJ residents undercount, especially Shrewsbury). Households are ACS tract households shared across block groups (an allocation, not a count).
+- Block-group incomes repeat tract ACS estimates (some with CV > 30%); household-weighted pooled medians come from bracket shares and are approximate. EJ-table incomes are an older ACS vintage.
+- Near-road residents are interpolated by area (uniform density). Results are ecological associations at neighbourhood scale, not individual exposure, health effects or causation.
+- Moran's I is high (about 0.7 at block-group level), so naive p-values are overstated; tract / cluster bootstrap intervals are reported instead.
+- PM2.5 is regional context from two county monitors (Worcester Summer St, Uxbridge) and one year; it cannot be localised to Route 9 or used to rank block groups. Nearest-monitor columns in the master table are labels, not exposure.
+- CBI correlates with distance partly by construction (its traffic term is a function of distance); use vulnerability_index for traffic-independent statements.
+
+====================================================================================================
+APPENDIX A. DATA INTEGRATION, CLEANING AND FETCH LOG
+====================================================================================================
+Data folder : C:\Users\vikra\OneDrive\Desktop\data.environment
+Script root : C:\Users\vikra\.cursor\Environmental_Studies
   PM2.5: 705 raw rows -> 705 valid site-days after dropping missing/negative and POC de-duplication
 
 Missing-value audit (after cleaning):
-  [ACS S1901, Worcester County tracts] rows=191  cols=13  columns with missing values: acs_median_income=2, acs_median_income_moe=2, acs_mean_income=2, acs_pct_hh_under_50k=2
+  [ACS S1901, Worcester County tracts] rows=191  cols=23  columns with missing values: acs_median_income=2, acs_median_income_moe=2, acs_mean_income=2, acs_pct_hh_under_50k=2
   [EJ DBF, statewide] rows=2,604  cols=28  columns with missing values: bg_median_hh_income=64
   [PM2.5] rows=705  cols=9  columns with missing values: none
   Sentinel handling: ACS '-', '(X)', '**' -> NaN; EJ block-group income coded 0 / flag 'U' (unavailable) -> NaN (64 block groups statewide); blank EJ flags -> False.
   ACS Worcester County tracts: 191; with no median income: 2; top-coded ($250,000+): 0; unreliable (CV>30%): 6
   Statewide MA median household income (ACS 2024 5-yr): $103,960
-
-Traffic input (MassDOT):
-  Station M3002W | Route 9 / Belmont St | Shrewsbury-Worcester Corridor
-  AADT=28,112  EB=7,148  WB=20,962  WB share=74.6%  WB:EB ratio=2.93:1  (EB+WB differs from AADT by 2 veh/day: rounding)
-  Brief check: AADT matches stated 28,112: True
-  NOTE: one count station => one AADT value. Tract-level traffic is MODELLED by distance decay from the Route 9 centreline, not measured.
-
-EJ_POLY records for Worcester + Shrewsbury: 149 block groups in 52 tracts (217,466 residents)
-
-Building spatial layer (Census TIGER/Line 2024):
+  Anchor traffic.csv: M3002W | Route 9 / Belmont St | Shrewsbury-Worcester Corridor | AADT 28,112 (brief check 28,112: True)
+  EJ_POLY records for Worcester + Shrewsbury: 149 block groups in 52 tracts (217,466 residents)
   Census TIGER block groups: 5,116 statewide, 571 in Worcester County; EJ_POLY has 2,604 statewide -> it is an EJ-only layer (50.9% of block groups).
   Study universe (all block groups in Worcester + Shrewsbury): 166 = 149 EJ-designated + 17 not EJ-designated
   Route 9 centreline: 12 TIGER segments, 70.8 km within 5 km of the study area
 
-Master table: 166 rows x 62 cols -> C:\Users\vikra\.cursor\Environmental_Studies\outputs\master_route9_table.csv
-  Demographic fields (pop, % minority, % LEP, EJ-table income) exist only for EJ-designated block groups (the DBF omits the rest); ACS tract income covers both groups.
-  [master] rows=166  cols=62  columns with missing values: income_best=2, total_pop=17, pct_minority=17, cumulative_burden_index=2
-
-Corridor definition: block-group centroid <= 1,500 m from Route 9  ->  81 of 166 block groups, 32 tracts, 108,583 EJ-designated residents (50% of all EJ residents in the two towns); 11 corridor block groups are in Shrewsbury.
-
-====================================================================================================
-2. CUMULATIVE EXPOSURE & EQUITY MODEL
-====================================================================================================
-Traffic exposure index = AADT(28,112) x exp(-d / 300 m), averaged over each block group's area on a 50 m grid (units: AADT-equivalent veh/day; 0 = no road influence).
-Cumulative burden index (0-100) = mean percentile rank of: traffic exposure, low income (ACS tract), EJ criteria met (0-3).
-PM2.5 is assigned from the nearest of the county's AQS monitors (no tract-level monitoring exists).
-
-EJ designation (EJ = block group present in MassGIS EJ_POLY):
-  Worcester + Shrewsbury         149 /   166 block groups EJ  (89.8%)
-  Rest of Worcester County       144 /   405 block groups EJ  (35.6%)
-  Massachusetts                2,604 / 5,116 block groups EJ  (50.9%)
-  Criteria mix, Worcester + Shrewsbury block groups:
-     Minority                                    70  (42%)
-     Minority and income                         62  (37%)
-     Not EJ-designated                           17  (10%)
-     Minority, income and English isolation      14  (8%)
-     Minority and English isolation               2  (1%)
-     Income                                       1  (1%)
-
-Distance bands (block-group centroid to Route 9):
-           block_groups  pct_ej  ej_residents  median_income  pct_minority  pct_lep_hh  mean_ej_criteria  traffic_exposure  mean_cbi
-dist_band                                                                                                                           
-<=0.5 km             32   100.0       41605.0        41667.0          56.9        12.1               1.8           13290.2      74.9
-0.5-1 km             29    96.6       37919.0        52011.0          59.6        13.4               1.8            4365.9      64.6
-1-2 km               37    83.8       48533.0        82172.0          54.4        11.3               1.4             779.7      48.6
-2-4 km               53    84.9       67560.0        80197.0          51.3        10.1               1.2              18.3      37.0
->4 km                15    86.7       21849.0        99932.0          39.5         7.8               1.1               0.0      22.5
-   (pct_minority / pct_lep_hh are means over EJ-designated block groups only)
-
-EJ-designated residents near Route 9 (areal interpolation; assumes uniform density inside each block group):
-  within  300 m:   28,786 EJ residents (13.2% of the 217,466) | land in EJ block groups 100% vs 81% beyond | % minority 55.6 vs 51.8 | % LEP hh 12.0 vs 10.5 | BG income $50,319 vs $62,692
-  within  500 m:   47,144 EJ residents (21.7% of the 217,466) | land in EJ block groups 99% vs 80% beyond | % minority 56.2 vs 51.2 | % LEP hh 12.3 vs 10.3 | BG income $50,980 vs $63,753
-  within 1000 m:   81,149 EJ residents (37.3% of the 217,466) | land in EJ block groups 96% vs 78% beyond | % minority 56.9 vs 49.5 | % LEP hh 12.5 vs 9.6 | BG income $53,506 vs $65,550
-
-====================================================================================================
-3. STATISTICAL INSIGHTS
-====================================================================================================
-A. Proximity to Route 9 vs equity indicators (block-group level, Spearman rank correlation)
-   Reading the signs: rho(distance, income) > 0 means incomes RISE with distance from Route 9;
-   rho(exposure, income) < 0 means incomes FALL where modelled traffic exposure is higher.
-
-              proximity measure                      outcome   n    rho       p
-    centroid distance (primary) ACS 2024 tract median income 164  0.470 p<0.001
-    centroid distance (primary)          EJ designated (0/1) 166 -0.190 p=0.014
-    centroid distance (primary)        EJ criteria met (0-3) 166 -0.342 p<0.001
-    centroid distance (primary)  EJ-table BG income [EJ BGs] 143  0.251 p=0.002
-    centroid distance (primary)          % minority [EJ BGs] 149 -0.255 p=0.002
-    centroid distance (primary)    % LEP households [EJ BGs] 149 -0.171 p=0.037
-          polygon-edge distance ACS 2024 tract median income 164  0.290 p<0.001
-          polygon-edge distance          EJ designated (0/1) 166 -0.133 p=0.088
-          polygon-edge distance        EJ criteria met (0-3) 166 -0.207 p=0.008
-          polygon-edge distance  EJ-table BG income [EJ BGs] 143  0.094 p=0.265
-          polygon-edge distance          % minority [EJ BGs] 149 -0.118 p=0.153
-          polygon-edge distance    % LEP households [EJ BGs] 149 -0.118 p=0.152
-    area-weighted mean distance ACS 2024 tract median income 164  0.475 p<0.001
-    area-weighted mean distance          EJ designated (0/1) 166 -0.194 p=0.012
-    area-weighted mean distance        EJ criteria met (0-3) 166 -0.347 p<0.001
-    area-weighted mean distance  EJ-table BG income [EJ BGs] 143  0.254 p=0.002
-    area-weighted mean distance          % minority [EJ BGs] 149 -0.255 p=0.002
-    area-weighted mean distance    % LEP households [EJ BGs] 149 -0.171 p=0.038
-modelled traffic exposure index ACS 2024 tract median income 164 -0.417 p<0.001
-modelled traffic exposure index          EJ designated (0/1) 166  0.173 p=0.026
-modelled traffic exposure index        EJ criteria met (0-3) 166  0.295 p<0.001
-modelled traffic exposure index  EJ-table BG income [EJ BGs] 143 -0.202 p=0.015
-modelled traffic exposure index          % minority [EJ BGs] 149  0.209 p=0.010
-modelled traffic exposure index    % LEP households [EJ BGs] 149  0.150 p=0.069
-
-   Primary result: rho(centroid distance, ACS median income) = +0.470 (n=164, p<0.001); tract-cluster bootstrap 95% CI [+0.197, +0.662]
-   Primary result: rho(centroid distance, EJ designated) = -0.190 (n=166, p=0.014); cluster bootstrap 95% CI [-0.318, -0.060]
-
-   Town-confound check (Shrewsbury is far wealthier than Worcester and Route 9 crosses both): gradient WITHIN each town
-     Worcester   income: rho = +0.568 (n=144, p<0.001, cluster 95% CI [+0.29, +0.74]) | EJ designated: rho = -0.151 (n=146, p=0.070) | median income $70,947
-     Shrewsbury  income: rho = +0.641 (n=20, p=0.002, cluster 95% CI [+0.02, +0.88]) | EJ designated: rho = -0.492 (n=20, p=0.028) | median income $134,970
-     Worcester-only OLS slope: $+10,926 income per km from Route 9 (R2=0.281, naive p<0.001)
-   OLS: income changes by $+10,651 per km from Route 9 (R2=0.159, p<0.001; naive p, spatial dependence ignored)
-
-   EJ share: 96.3% of corridor block groups (78/81) vs 83.5% elsewhere in the two towns (71/85); odds ratio 5.1 (Fisher exact p=0.009)
-   Median centroid distance to Route 9: EJ block groups 1,397 m vs non-EJ 2,465 m (Mann-Whitney p=0.015, Cliff's delta -0.36)
-
-   Tract level (n=52 tracts with income): rho(distance, income) = +0.405 (p=0.003); rho(exposure, income) = -0.316 (p=0.022); rho(distance, share of block groups that are EJ) = -0.224 (p=0.103, n=54)
-   Moran's I of log(income) across block groups = 0.729 (p=0.001; 999 permutations) -> strong spatial clustering; effective sample size is smaller than n, so the cluster-bootstrap CI above is the safer inference.
-
-B. Corridor vs. rest of Worcester + Shrewsbury (Mann-Whitney U; Cliff's delta = effect size, 0=none, +/-1=complete separation)
-                         metric  n_corridor  n_other  median_corridor  median_other  difference  cliffs_delta       p
-    ACS tract median income ($)          80       84         52011.00      84407.00   -32396.00         -0.44 p<0.001
-    % HH under $50k (ACS tract)          80       84            44.60         31.30       13.30          0.44 p<0.001
-          EJ criteria met (0-3)          81       85             2.00          1.00        1.00          0.32 p<0.001
-EJ-table BG income ($) [EJ BGs]          74       69         44464.50      60047.00   -15582.50         -0.19 p=0.050
-            % minority [EJ BGs]          78       71            57.58         44.44       13.13          0.22 p=0.021
-      % LEP households [EJ BGs]          78       71            10.35          6.35        4.00          0.22 p=0.020
-        Cumulative burden index          80       84            69.31         33.89       35.42          0.74 p<0.001
-   Household-weighted mean of tract median incomes (tract households split evenly across block groups): corridor $71,843 vs elsewhere $96,753 (-25.7%); statewide median $103,960 (corridor median = 50% of state)
-   Low-income households (<$50k, ACS tract): corridor 44.6% vs elsewhere 31.3% (medians)
-
-C. Sensitivity of the corridor gaps to the corridor definition (centroid distance)
- corridor  n_bg  pct_EJ_in  pct_EJ_out  median_inc_in  median_inc_out      gap p(income)
- <= 500 m    32      100.0        87.3        41667.0         81949.0 -40282.0   p<0.001
-<= 1000 m    61       98.4        84.8        50602.0         84407.0 -33805.0   p<0.001
-<= 1500 m    81       96.3        83.5        52011.0         84407.0 -32396.0   p<0.001
-<= 2000 m    98       92.9        85.3        61522.0         84407.0 -22885.0   p<0.001
-<= 3000 m   129       90.7        86.5        67168.0        105571.0 -38403.0   p<0.001
-
-D. Worcester County context (ACS tracts, all income data; no geometry needed)
-   Worcester+Shrewsbury tracts: median $81,073 (n=52) | other Worcester County tracts: median $104,236 (n=137) | Mann-Whitney p<0.001, Cliff's delta -0.36
-              block_groups  pct_EJ  median_income  median_dist_m
-municipality                                                    
-Shrewsbury              20    70.0       134970.0         1319.5
-Worcester              146    92.5        70947.0         1647.4
-
-E. Cumulative burden - corridor hotspots (top quintile of index AND inside the corridor)
-   33 hotspot block groups; 42,805 EJ-designated residents (19.7% of EJ residents in the two towns)
-    geoid_bg municipality  total_pop  income_best  pct_minority  pct_lep_hh  dist_centroid_m  exposure_index                       ej_criteria_desc  cumulative_burden_index
-250277312033    Worcester     1675.0      26054.0     67.402985   29.443691            212.0         14591.0 Minority, income and English isolation                     95.8
-250277316022    Worcester     2253.0      26458.0     34.354194   25.203253            272.0         13315.0 Minority, income and English isolation                     94.6
-250277318022    Worcester     1500.0      36560.0     91.933333   33.926128            238.0         13671.0 Minority, income and English isolation                     92.9
-250277312031    Worcester     1793.0      26054.0     73.675404   16.782248            180.0         16922.0                    Minority and income                     89.2
-250277318024    Worcester      733.0      36560.0     69.167804   51.145039            463.0          6594.0 Minority, income and English isolation                     88.9
-250277312032    Worcester     1616.0      26054.0     59.467822    5.555555            194.0         16022.0                    Minority and income                     88.8
-250277316021    Worcester     1014.0      26458.0     34.714004    0.000000            156.0         17873.0                    Minority and income                     88.7
-250277316015    Worcester      495.0      39835.0     41.818182   19.883041             92.0         21600.0                    Minority and income                     87.0
-250277314005    Worcester      830.0      41667.0     77.710843    0.000000              8.0         20885.0                    Minority and income                     85.8
-250277318012    Worcester     1862.0      50602.0     50.429646   29.203539            490.0          8238.0 Minority, income and English isolation                     85.7
-   rho(distance, cumulative burden index) = -0.753 (p<0.001) - traffic is one of 3 components, so this is partly by construction.
-   Traffic-independent vulnerability score (income + EJ criteria) vs distance: rho = -0.449 (p<0.001)
-
-====================================================================================================
-4. PM2.5 AIR QUALITY (EPA AQS, Worcester County)
-====================================================================================================
-Period 2025-01-01 to 2025-12-31; 705 site-days at 2 monitors
-Brief check: mean 5.65 ug/m3 (brief ~5.65), max 33.5 (brief 33.5) -> consistent
-All-monitor: median 4.5, SD 4.39, p95 13.5, p98 18.2, max 33.5
-Peak: 33.5 ug/m3 on 2025-08-05 at Uxbridge (AQI 96); same date at other monitor(s): Worcester Summer Street 32.9
-
-By monitor:
-                monitor  days  mean   p98  max  days_over_who24  days_over_naaqs24
-Worcester Summer Street   358  5.75 17.93 32.9               12                  0
-               Uxbridge   347  5.54 18.67 33.5               11                  0
-
-Benchmark comparison (ug/m3):
-  Worcester Summer Street    annual mean (mean of quarterly means) 5.76 vs federal annual NAAQS 9.0 -> meets; WHO annual 5.0 -> exceeds
-                             98th percentile 17.9 vs federal 24-h NAAQS 35 -> meets; days > 35: 0; days > WHO 24-h 15: 12 (3.4%); max AQI 95
-  Uxbridge                   annual mean (mean of quarterly means) 5.49 vs federal annual NAAQS 9.0 -> meets; WHO annual 5.0 -> exceeds
-                             98th percentile 18.7 vs federal 24-h NAAQS 35 -> meets; days > 35: 0; days > WHO 24-h 15: 11 (3.2%); max AQI 96
-  (Official NAAQS compliance uses 3-year design values; the figures above are a single-year screen.)
-
-Monitor agreement (340 common days): Spearman 0.95; mean difference -0.38 ug/m3 (Uxbridge minus Worcester Summer Street), Wilcoxon p<0.001
-Seasonality: highest monthly mean 9.9 (month 6), lowest 3.7 (month 10)
-WHO 24-h exceedance site-days by month: {6: 11, 7: 7, 8: 5} -> 100% fall in Jun-Aug; 14 distinct dates
-Two monitors ~23 km apart move together (Spearman above) -> spikes are regionally synchronous, i.e. not attributable to a single local road from these data.
-Five highest site-days:
-      date                    site  pm25  aqi
-2025-08-05                Uxbridge  33.5   96
-2025-08-05 Worcester Summer Street  32.9   95
-2025-07-26 Worcester Summer Street  30.7   91
-2025-06-08 Worcester Summer Street  29.4   89
-2025-08-04 Worcester Summer Street  27.4   85
-
-Block groups by nearest PM2.5 monitor: Worcester Summer Street=166; median distance to monitor 3.2 km
-
-====================================================================================================
-5. FIGURES
-====================================================================================================
-  saved C:\Users\vikra\.cursor\Environmental_Studies\charts\figure1_income_traffic_ej.png
-  saved C:\Users\vikra\.cursor\Environmental_Studies\charts\figure2_pm25_distribution.png
-
-====================================================================================================
-6. KEY QUANTITATIVE FINDINGS (policy brief)
-====================================================================================================
-1. Traffic loading. Route 9 at M3002W carries 28,112 vehicles/day, 74.6% westbound (20,962 WB vs 7,148 EB; 2.9:1). An estimated 47,144 EJ-designated residents (21.7% of all 217,466 EJ residents in the two towns) live within 500 m and 81,149 (37.3%) within 1 km of the centreline.
-
-2. EJ designation is high everywhere but highest on the corridor. 90% of all block groups in Worcester and Shrewsbury are EJ-designated (vs 36% in the rest of the county and 51% statewide), and 96% of corridor block groups (centroid <= 1.5 km) vs 84% elsewhere in the two towns (odds ratio 5.1, p=0.009). EJ block groups sit a median 1,397 m from Route 9 vs 2,465 m for non-EJ (rho = -0.19, cluster-bootstrap 95% CI [-0.32, -0.06]). The effect is modest: at tract level the association is weaker (rho = -0.22, p=0.103).
-
-3. Income gradient. Median household income tends to rise with distance from Route 9: Spearman rho = +0.47 (p<0.001; tract-cluster bootstrap 95% CI [0.20, 0.66]); tract-level rho = +0.41. That is +$10,651 in tract median income per km from the road (citywide pooled OLS). Spatial clustering is strong (Moran's I = 0.73), which shrinks the effective sample size.
-
-   Town-confound check: within Worcester alone the gradient is rho = +0.57 (p<0.001, n=144, cluster CI [0.29, 0.74]; +$10,926/km); within Shrewsbury alone rho = +0.64 (p=0.002, n=20, CI [0.02, 0.88]). The Worcester-only result shows the gradient is not merely the Worcester-vs-Shrewsbury town divide.
-
-4. Corridor gap. Median tract income is $52,011 in the corridor vs $84,407 elsewhere in the two towns (-$32,396); the corridor median equals 50% of the statewide median ($103,960). Households earning under $50k: 44.6% in the corridor vs 31.3% elsewhere. Worcester+Shrewsbury tracts overall have a median of $81,073 vs $104,236 for the rest of Worcester County.
-
-5. Cumulative burden. The traffic-independent vulnerability score (low income + EJ criteria met) also rises toward Route 9 (rho with distance = -0.45, p<0.001). 33 corridor block groups (42,805 EJ residents, 19.7% of the study EJ population) are in the top quintile of the cumulative burden index.
-
-6. PM2.5. Mean 5.65 ug/m3, peak 33.5. The federal 24-h standard (35) was exceeded on 0 of 705 site-days (98th percentile 18.2); the annual mean is below the 9 ug/m3 federal annual standard but above the WHO 5 ug/m3 guideline; 23 site-days (3.3%, 14 distinct dates) exceeded the WHO 24-h guideline of 15, 100% of them in June-August. The two monitors correlate at rho = 0.95, so the episodes are regional, not corridor-specific.
-
-LIMITATIONS
-- One AADT station: block-group traffic is a distance-decay model (300 m e-folding), not a measurement; it ignores lane geometry, truck share, grade and wind.
-- PM2.5 comes from two monitors (Worcester Summer St, Uxbridge) and cannot differentiate block groups; it is regional context, not a corridor-specific measurement.
-- EJ_POLY lists only EJ-designated block groups. Non-EJ block groups were identified from Census geometry, so demographics (population, % minority, % LEP) are unavailable for them.
-- ACS 2024 tract incomes are applied to block groups (some tracts have wide margins of error: see acs_income_reliable); EJ-table incomes are an older ACS vintage.
-- Population near Route 9 is interpolated by area (uniform-density assumption). Results are ecological associations, not individual exposure or health effects.
-- One year of PM2.5 data cannot establish NAAQS compliance, which uses 3-year design values.
+Master table: 166 rows x 89 cols (62 legacy + 27 new) -> C:\Users\vikra\.cursor\Environmental_Studies\outputs\master_route9_table.csv
+  [master] rows=166  cols=89  columns with missing values: income_best=2, total_pop=17, pct_minority=17, vulnerability_index=2, est_households=2
+  Corridor: block-group centroid <= 1,500 m -> 81 of 166 block groups, 32 tracts, 108,583 EJ residents (50% of EJ residents in the two towns); 11 are in Shrewsbury.
+  EJ designation share: Worcester + Shrewsbury 149/166 (89.8%); rest of Worcester County 144/405 (35.6%); Massachusetts 2,604/5,116 (50.9%).
+  Criteria mix (Worcester + Shrewsbury block groups): Minority 70; Minority and income 62; Not EJ-designated 17; Minority, income and English isolation 14; Minority and English isolation 2; Income 1
+  PM2.5 brief check: mean 5.65 ug/m3 (brief ~5.65), max 33.5 (brief 33.5) -> consistent; peak 33.5 on 2025-08-05 at Uxbridge

@@ -99,8 +99,8 @@ export function Scatter({ radius, hoveredId, pinnedId, activeBand, onHover, onPi
                 r={isFocus ? 7 : 4.6}
                 fill={EJ_COLOR[b.ejDesc]}
                 fillOpacity={dim ? 0.12 : 0.78}
-                stroke={b.hotspot ? "#0f1b2d" : "#fff"}
-                strokeWidth={b.hotspot ? 1.6 : 0.8}
+                stroke={b.priorityHotspot ? "#0f1b2d" : "#fff"}
+                strokeWidth={b.priorityHotspot ? 1.6 : 0.8}
                 strokeOpacity={dim ? 0.2 : 1}
                 style={{ cursor: "pointer" }}
                 onPointerEnter={() => onHover(b.id)}
@@ -132,7 +132,7 @@ export function Scatter({ radius, hoveredId, pinnedId, activeBand, onHover, onPi
           <span className="inline-block h-0.5 w-5 bg-ink" /> Octile median
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-white ring-2 ring-ink" /> Hotspot
+          <span className="h-2.5 w-2.5 rounded-full bg-white ring-2 ring-ink" /> Priority hotspot (vulnerability, no traffic)
         </li>
       </ul>
     </div>

@@ -29,6 +29,17 @@ export interface BlockGroup {
   areaKm2: number | null;
   lat: number | null;
   lon: number | null;
+  /** Traffic-independent 0-100 score (income + EJ criteria only). Primary "where to look" layer. */
+  vulnerability: number | null;
+  vulnQuintile: string | null;
+  /** Top vulnerability quintile AND in the 1.5 km corridor. Replaces legacy `hotspot` as the lead flag. */
+  priorityHotspot: boolean;
+  priorityRank: number | null;
+  /** MEASURED AADT of the nearest MassDOT Route 9 segment (not the modelled `exposure` field). */
+  nearestSegmentAadt: number | null;
+  nearestSegmentAadtYear: number | null;
+  estHouseholds: number | null;
+  estHhWithin500m: number | null;
 }
 
 export interface Traffic {

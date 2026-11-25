@@ -31,17 +31,21 @@ export const LINKS = {
   /** 3. Master dataset: verbatim copy of outputs/master_route9_table.csv */
   datasetCsv: asset("data/master_route9_table.csv"),
   analysisScript: asset("code/route9_deep_analysis.py"),
+  fetchScript: asset("code/fetch_massdot_traffic_aadt.py"),
   summaryStatistics: asset("data/summary_statistics.txt"),
+  dataDictionaryMd: asset("data/data_dictionary.md"),
+  tractTableCsv: asset("data/tract_table_route9.csv"),
   figure1: asset("figures/figure1_income_traffic_ej.png"),
   figure2: asset("figures/figure2_pm25_distribution.png"),
+  figure3: asset("figures/figure3_priority_hotspots.png"),
 };
 
 /** Public-facing data sources, also rendered in the Methodology section. */
 export const SOURCES = [
   {
-    name: "MassDOT traffic counts",
-    detail: "Station M3002W, Route 9 / Belmont St (Shrewsbury-Worcester). AADT 28,112; 20,962 westbound, 7,148 eastbound.",
-    use: "Traffic loading input",
+    name: "MassDOT traffic counts & LRS segment AADT",
+    detail: "RoadInventoryLRS Traffic (layer 56, continuous segment AADT, mostly 2024-25) joined to TrafficCountLocations stations by route + milepost; 8 stations on Route 9, 100% joined.",
+    use: "Traffic loading input (measured)",
     href: "https://geo-massdot.opendata.arcgis.com/",
   },
   {

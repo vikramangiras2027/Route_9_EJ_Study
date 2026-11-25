@@ -57,7 +57,7 @@ export function Explorer() {
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 text-[0.8rem] font-medium text-ink-2">
               <input type="checkbox" checked={showHotspots} onChange={(e) => setShowHotspots(e.target.checked)} className="h-4 w-4 accent-ink" />
-              Outline hotspots
+              Outline priority block groups
             </label>
           </div>
 
@@ -176,8 +176,8 @@ export function Explorer() {
         <div className="card flex flex-col p-4 sm:p-5 lg:col-span-7">
           <h3 className="font-serif text-xl font-semibold text-ink">Income climbs with distance</h3>
           <p className="mb-3 mt-1 text-[0.88rem] leading-relaxed text-ink-2">
-            Each dot is a block group (n = 164 with an income estimate). The black line traces the median income of eight equal-sized distance groups.
-            Spearman &rho; = <b>+0.47</b>, tract-cluster 95% CI [0.20, 0.66].
+            Each dot is a block group (n = 164 with an income estimate, both towns). The black line traces the median income of eight equal-sized distance groups.
+            Spearman &rho; = <b>+0.47</b> pooled, tract-cluster 95% CI [0.20, 0.66] &mdash; Worcester alone, tract level: +0.48, CI [0.17, 0.72] (see Methodology).
           </p>
           <Scatter radius={radius} hoveredId={hoveredId} pinnedId={pinnedId} activeBand={activeBand} onHover={setHoveredId} onPin={setPinnedId} />
           <div className="mt-auto border-t border-rule pt-5">
@@ -208,29 +208,49 @@ export function Explorer() {
       <div className="mt-14">
         <div className="mb-5 max-w-3xl">
           <p className="eyebrow mb-2">Publication figure</p>
-          <h3 className="font-serif text-2xl font-semibold text-ink">Figure 1. Income, traffic exposure and EJ status</h3>
+          <h3 className="font-serif text-2xl font-semibold text-ink">Figure 1. Measured traffic, income and who lives nearby</h3>
           <p className="mt-2 text-[0.95rem] leading-relaxed text-ink-2">
-            The high-resolution figure produced by <code className="rounded bg-paper px-1.5 py-0.5 text-[0.82rem]">route9_deep_analysis.py</code>, exactly as it will appear in the paper. Click to open at full resolution.
+            The high-resolution figure produced by <code className="rounded bg-paper px-1.5 py-0.5 text-[0.82rem]">route9_deep_analysis.py</code>, exactly as it appears in the report. Click to open at full resolution.
           </p>
         </div>
         <FigureCard
           src={LINKS.figure1}
-          alt="Four-panel figure. A: map of median household income by tract with Route 9 and the 1.5 km corridor. B: map of EJ status by block group. C: scatter of income versus distance to Route 9. D: median income and modelled traffic exposure by distance band."
-          title="Figure 1. Income, traffic exposure and environmental-justice status along the Route 9 corridor, Worcester & Shrewsbury, MA"
+          alt="Five-panel figure. A: map of Worcester tract income with measured Route 9 AADT and count stations. B: the same for Shrewsbury. C: measured AADT profile along the corridor's milepost. D: Worcester tract income versus distance to Route 9. E: Worcester household income and EJ population, inside vs. beyond 300/500/1000 m buffers."
+          title="Figure 1. Measured Route 9 traffic loading and neighbourhood income, Worcester (primary) and Shrewsbury (sensitivity), MA"
           caption={
             <p>
-              (A) Tract median household income with Route 9 (AADT 28,112/day) and the 1.5 km corridor. (B) EJ status of 166 block groups. (C) Income vs. distance to Route 9, log scale, with octile medians. (D) Median income and modelled traffic exposure by distance band. Traffic exposure is modelled as AADT &times;
-              exp(&minus;distance/300 m); a single count station is applied to the whole centreline.
+              (A) Worcester tract income with measured Route 9 AADT and count stations. (B) Shrewsbury, same layers, sensitivity. (C) Measured MassDOT segment AADT by milepost, Worcester vs. Shrewsbury, with the old single-station anchor for comparison. (D) Worcester tract income vs. distance (log scale), with quintile medians. (E) Worcester households and EJ residents inside vs. beyond each buffer, with median income and share under $50k.
             </p>
           }
           downloadName="figure1_income_traffic_ej.png"
         />
       </div>
 
+      <div className="mt-14">
+        <div className="mb-5 max-w-3xl">
+          <p className="eyebrow mb-2">Publication figure</p>
+          <h3 className="font-serif text-2xl font-semibold text-ink">Figure 3. Where to look first</h3>
+          <p className="mt-2 text-[0.95rem] leading-relaxed text-ink-2">
+            The 27 Worcester priority block groups (vulnerability index, no traffic term) ranked and mapped, with the top 15 labelled.
+          </p>
+        </div>
+        <FigureCard
+          src={LINKS.figure3}
+          alt="Two-panel figure. A: map of Worcester block groups shaded by vulnerability quintile, with the 27 priority block groups outlined and the top 15 numbered, and Route 9 shown at measured AADT. B: horizontal bar chart of the top 15 priority block groups by vulnerability index, with adjacent AADT and EJ residents within 500 m."
+          title="Figure 3. Where to look first: vulnerability without traffic, inside the Route 9 corridor"
+          caption={
+            <p>
+              (A) Worcester block groups by vulnerability quintile (low income + EJ criteria, no traffic term); priority block groups (top quintile, in the 1.5 km corridor) outlined. (B) The top 15, ranked, with the adjacent measured AADT and EJ residents within 500 m for context.
+            </p>
+          }
+          downloadName="figure3_priority_hotspots.png"
+        />
+      </div>
+
       <div className="mt-8">
-        <Callout tone="caution" title="Reading the traffic layer">
-          Traffic exposure is a <b>model</b>, not a measurement: one MassDOT count station (M3002W) is projected along the whole centreline and decays with distance (300 m e-folding). It ignores
-          truck share, grade, lane geometry and wind. Because the model depends only on distance, the &ldquo;traffic exposure&rdquo; map is, by design, the inverse of the distance map.
+        <Callout tone="caution" title="Reading the traffic and vulnerability layers">
+          Route 9 traffic itself is <b>measured</b> by MassDOT, segment by segment. Exposure at a given block group is still a <b>model</b> built on that measured AADT, decaying with distance (300 m e-folding); it ignores truck share, grade, lane geometry and wind. The &ldquo;vulnerability&rdquo; layer deliberately has <i>no</i> traffic
+          term &mdash; it is income and EJ criteria only &mdash; so its relationship with distance is an observation, not a construction, unlike the legacy burden index.
         </Callout>
       </div>
     </Section>

@@ -129,22 +129,26 @@ export function Resources() {
         <ResourceSlot
           icon={<FileSpreadsheet className="h-5 w-5" />}
           title="Master dataset (CSV)"
-          description="One row per block group: demographics, income, distance to Route 9, modelled exposure, burden index and hotspot flag."
+          description="One row per block group: demographics, income, distance to Route 9, measured segment AADT, modelled exposure, vulnerability index and priority-hotspot flag."
           href={LINKS.datasetCsv}
           actionLabel="Download master_route9_table.csv"
           placeholderLabel="Unavailable"
           placeholderHint=""
           download="master_route9_table.csv"
-          meta={`${blockGroups.length} rows × ${csvColumns.length} columns · UTF-8 · ~84 KB`}
+          meta={`${blockGroups.length} rows × ${csvColumns.length} columns · UTF-8`}
         />
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { href: LINKS.analysisScript, name: "route9_deep_analysis.py", sub: "Full analysis script", icon: FileCode2, dl: "route9_deep_analysis.py" },
+          { href: LINKS.fetchScript, name: "fetch_massdot_traffic_aadt.py", sub: "MassDOT traffic fetch/join", icon: FileCode2, dl: "fetch_massdot_traffic_aadt.py" },
           { href: LINKS.summaryStatistics, name: "summary_statistics.txt", sub: "Every statistic, as printed", icon: ScrollText, dl: "summary_statistics.txt" },
+          { href: LINKS.dataDictionaryMd, name: "data_dictionary.md", sub: "Every column, explained", icon: ScrollText, dl: "data_dictionary.md" },
+          { href: LINKS.tractTableCsv, name: "tract_table_route9.csv", sub: "One row per Worcester tract", icon: FileSpreadsheet, dl: "tract_table_route9.csv" },
           { href: LINKS.figure1, name: "figure1_income_traffic_ej.png", sub: "Figure 1, full resolution", icon: ImageIcon, dl: "figure1_income_traffic_ej.png" },
-          { href: LINKS.figure2, name: "figure2_pm25_distribution.png", sub: "Figure 2, full resolution", icon: ImageIcon, dl: "figure2_pm25_distribution.png" },
+          { href: LINKS.figure2, name: "figure2_pm25_distribution.png", sub: "Appendix figure, PM2.5", icon: ImageIcon, dl: "figure2_pm25_distribution.png" },
+          { href: LINKS.figure3, name: "figure3_priority_hotspots.png", sub: "Figure 3, priority map", icon: ImageIcon, dl: "figure3_priority_hotspots.png" },
         ].map((f) => (
           <a key={f.name} href={f.href} download={f.dl} className="card group flex items-center gap-3 p-4 transition-colors hover:border-ink-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper text-ink-2 group-hover:bg-navy group-hover:text-white">

@@ -38,6 +38,8 @@ export interface BandStats {
   ejCriteria: number | null;
   exposure: number | null;
   cbi: number | null;
+  vulnerability: number | null;
+  nearestSegmentAadt: number | null;
 }
 
 export function bandStats(band: Band, bgs: BlockGroup[] = blockGroups): BandStats {
@@ -53,6 +55,8 @@ export function bandStats(band: Band, bgs: BlockGroup[] = blockGroups): BandStat
     ejCriteria: mean(g.map((b) => b.ejCount)),
     exposure: mean(g.map((b) => b.exposure)),
     cbi: mean(g.map((b) => b.cbi)),
+    vulnerability: mean(g.map((b) => b.vulnerability)),
+    nearestSegmentAadt: mean(g.map((b) => b.nearestSegmentAadt)),
   };
 }
 
@@ -126,6 +130,27 @@ export const headline = (() => {
   };
 })();
 
+/**
+ * Traffic-independent "where to look first" headline: vulnerability_index
+ * (income + EJ criteria only, no traffic term) inside the 1.5 km corridor.
+ * This is the primary hotspot layer; `headline.hotspots` above is the legacy
+ * cumulative-burden-index list, kept for comparison because CBI's distance
+ * correlation is partly by construction (its traffic term is itself a
+ * function of distance to Route 9).
+ */
+export const priorityHeadline = (() => {
+  const priority = blockGroups.filter((b) => b.priorityHotspot);
+  const worcester = blockGroups.filter((b) => b.town === "Worcester");
+  return {
+    n: priority.length,
+    ejResidents: sum(priority.map((b) => b.pop)),
+    households: sum(priority.map((b) => b.estHouseholds)),
+    allInWorcester: priority.every((b) => b.town === "Worcester"),
+    nInWorcester: priority.filter((b) => b.town === "Worcester").length,
+    worcesterN: worcester.length,
+  };
+})();
+
 export interface Metric {
   key: string;
   label: string;
@@ -175,19 +200,37 @@ export const BAND_METRICS: Metric[] = [
     max: 16,
   },
   {
+    key: "aadt",
+    label: "Measured traffic (nearest segment)",
+    short: "Measured AADT",
+    help: "Mean AADT of the MassDOT Route 9 segment nearest each block group. Measured, not modelled \u2014 mostly 2024\u20132025 counts.",
+    value: (s) => s.nearestSegmentAadt,
+    format: (n) => `${Math.round(n).toLocaleString("en-US")} veh/day`,
+    max: 46_000,
+  },
+  {
     key: "exposure",
-    label: "Modelled traffic exposure",
-    short: "Traffic exposure",
-    help: "Mean of AADT \u00d7 exp(\u2212d/300 m) averaged over each block group on a 50 m grid. Modelled, not measured.",
+    label: "Modelled traffic exposure (legacy)",
+    short: "Modelled exposure",
+    help: "Nearest-segment AADT \u00d7 exp(\u2212d/300 m), averaged on a 50 m grid. Mostly restates distance \u2014 see Methodology.",
     value: (s) => s.exposure,
     format: (n) => `${Math.round(n).toLocaleString("en-US")} veh/day-eq.`,
     max: 14_000,
   },
   {
+    key: "vulnerability",
+    label: "Vulnerability (no traffic)",
+    short: "Vulnerability",
+    help: "0\u2013100: mean percentile rank of low income and EJ criteria met only. No traffic term, so its distance link is an observation, not a construction.",
+    value: (s) => s.vulnerability,
+    format: (n) => n.toFixed(1),
+    max: 100,
+  },
+  {
     key: "cbi",
-    label: "Cumulative burden index",
-    short: "Burden index",
-    help: "0\u2013100: mean percentile rank of traffic exposure, low income and EJ criteria met.",
+    label: "Cumulative burden index (legacy)",
+    short: "Legacy CBI",
+    help: "0\u2013100: mean percentile rank of modelled traffic exposure, low income and EJ criteria met. Partly built-in: the traffic term is itself a function of distance.",
     value: (s) => s.cbi,
     format: (n) => n.toFixed(1),
     max: 100,

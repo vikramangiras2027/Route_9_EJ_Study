@@ -1,14 +1,18 @@
+import { VULNERABILITY } from "../data/corridor";
 import { Callout, Section } from "./ui";
 
 /**
- * All values below are transcribed from outputs/summary_statistics.txt (section 3).
- * Bootstrap CIs are tract-cluster bootstrap 95% intervals.
+ * All values below are transcribed from outputs/summary_statistics.txt
+ * (sections 3, 4 and 6). Bootstrap CIs are tract-cluster bootstrap 95%
+ * intervals unless noted.
  */
 const FOREST = [
+  { label: "Distance ↔ income", sub: "Worcester tracts (primary), n = 44", rho: 0.48, lo: 0.17, hi: 0.72, p: "<0.001" },
   { label: "Distance ↔ income", sub: "all block groups, n = 164", rho: 0.47, lo: 0.197, hi: 0.662, p: "<0.001" },
-  { label: "Distance ↔ income", sub: "Worcester only, n = 144", rho: 0.568, lo: 0.29, hi: 0.74, p: "<0.001" },
+  { label: "Distance ↔ income", sub: "Worcester block groups, n = 144", rho: 0.568, lo: 0.29, hi: 0.74, p: "<0.001" },
   { label: "Distance ↔ income", sub: "Shrewsbury only, n = 20", rho: 0.641, lo: 0.02, hi: 0.88, p: "0.002" },
   { label: "Distance ↔ EJ-designated", sub: "all block groups, n = 166", rho: -0.19, lo: -0.318, hi: -0.06, p: "0.014" },
+  { label: "Distance ↔ vulnerability (no traffic)", sub: "all block groups, n = 164", rho: VULNERABILITY.rhoWithDistance.vulnerability, lo: -0.61, hi: -0.2, p: "<0.001" },
 ];
 
 const CORRIDOR_TESTS = [
@@ -25,7 +29,7 @@ const DISTANCE_ROBUSTNESS = [
   { measure: "Centroid distance (primary)", inc: "+0.470", ej: "−0.190 (0.014)", crit: "−0.342" },
   { measure: "Polygon-edge distance", inc: "+0.290", ej: "−0.133 (0.088)", crit: "−0.207" },
   { measure: "Area-weighted mean distance", inc: "+0.475", ej: "−0.194 (0.012)", crit: "−0.347" },
-  { measure: "Modelled traffic exposure", inc: "−0.417", ej: "+0.173 (0.026)", crit: "+0.295" },
+  { measure: "Modelled traffic exposure (legacy)", inc: "−0.417", ej: "+0.173 (0.026)", crit: "+0.295" },
 ];
 
 const SENSITIVITY = [
@@ -113,7 +117,7 @@ export function Evidence() {
           </p>
           <Forest />
           <p className="mt-3 text-[0.75rem] leading-snug text-ink-3">
-            Points: Spearman &rho;; bars: tract-cluster bootstrap 95% CI. Worcester-only OLS slope: +$10,926 per km (R&sup2; = 0.28); all block groups: +$10,651 per km (R&sup2; = 0.16). Tract-level (n = 52): &rho; = +0.41, p = 0.003.
+            Points: Spearman &rho;; bars: tract-cluster bootstrap 95% CI. Worcester tract-level is the primary spatial result (town fixed-effects slope +$11,243/km, CI +$6,609 to +$15,876). Worcester block-group OLS slope: +$10,926/km (R&sup2; = 0.28); pooled, both towns: +$10,651/km (R&sup2; = 0.16). The vulnerability index deliberately omits traffic, so its link with distance (&rho; = {VULNERABILITY.rhoWithDistance.vulnerability}) is an observation &mdash; unlike the legacy burden index ({VULNERABILITY.rhoWithDistance.legacyCbi}), whose traffic term is itself a function of distance (&rho; = {VULNERABILITY.rhoWithDistance.trafficPercentile}).
           </p>
         </div>
 

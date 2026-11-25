@@ -265,8 +265,9 @@ export function AirQuality() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Callout tone="caution" title="Why this is context, not a corridor finding">
-          The monitors are about {PM_ALL.monitorDistanceKm} km apart and correlate at &rho; = {PM_ALL.agreementRho}, so spikes are synchronous across the county. Every block group is assigned to its nearest monitor
-          (median distance 3.2 km), so PM<sub>2.5</sub> cannot differentiate neighborhoods and is <b>not</b> used in the cumulative burden index.
+          The monitors are about {PM_ALL.monitorDistanceKm} km apart and correlate at &rho; = {PM_ALL.agreementRho}, so spikes are synchronous across the county. The nearer one, Worcester Summer Street, still sits{" "}
+          <b>0.9 km</b> from Route 9 &mdash; an urban-background site, outside even the 300 m near-road zone used elsewhere in this study, not a roadside monitor. Every block group is assigned to its nearest monitor
+          (median distance 3.2 km), so PM<sub>2.5</sub> cannot differentiate neighborhoods and is <b>not</b> used in the vulnerability index or the legacy burden index.
         </Callout>
         <Callout title="How corridor exposure is estimated instead">
           Near-road exposure is modelled as <b>AADT &times; exp(&minus;d / 300 m)</b>, area-averaged over each block group. A true near-road gradient needs local sensors, an obvious extension for future work.

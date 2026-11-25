@@ -20,13 +20,13 @@ const STEPS = [
   },
   {
     icon: Gauge,
-    title: "Model traffic exposure",
-    body: "One count station cannot give tract-level traffic, so exposure is modelled: AADT × exp(−d / 300 m), sampled on a 50 m grid and averaged inside each block group. Residents within 300 m, 500 m and 1 km are estimated by areal interpolation (uniform density within a block group).",
+    title: "Join measured MassDOT traffic counts",
+    body: "fetch_massdot_traffic_aadt.py pages the Roads/RoadInventoryLRS feature services for continuous segment AADT (layer 56, mostly 2024–2025) and count-station IDs (layer 2), joined by route + milepost; a spatial fallback (≤ 50 m) covers stations layer 2 misses. Every block group gets the nearest segment's measured AADT, plus a distance-decay exposure model (AADT × exp(−d / 300 m), 50 m grid) kept for comparability with the previous release.",
   },
   {
     icon: Layers,
-    title: "Cumulative burden index",
-    body: "A 0–100 score: the mean percentile rank of traffic exposure, low income (ACS tract) and EJ criteria met (0–3). Hotspots are corridor block groups in the top quintile, a transparent, equal-weight index rather than a black-box score.",
+    title: "Vulnerability index & priority hotspots",
+    body: "The lead screening score is traffic-independent: the mean percentile rank of low income (ACS tract) and EJ criteria met (0–3), with no traffic term. Priority hotspots are corridor block groups in the top quintile. A legacy cumulative burden index (which folds in modelled traffic exposure) is retained for comparison, flagged as partly distance-by-construction.",
   },
   {
     icon: Sigma,
@@ -36,40 +36,48 @@ const STEPS = [
 ];
 
 const CONSTANTS = `# route9_deep_analysis.py: model parameters
-CRS_MA = 26986            # NAD83 / MA Mainland (metres)
-CORRIDOR_M = 1500         # centroid within ~1 mile
-EXPOSURE_DECAY_M = 300    # e-folding distance (m)
-GRID_M = 50               # exposure sampling grid
+CRS_MA = 26986              # NAD83 / MA Mainland (metres)
+CORRIDOR_M = 1500           # centroid within ~1 mile
+EXPOSURE_DECAY_M = 300      # primary e-folding distance (m)
+EXPOSURE_DECAY_ALT_M = 150  # sensitivity
+GRID_M = 50                 # exposure sampling grid
 BUFFERS_M = (300, 500, 1000)
 BANDS = [0, 500, 1000, 2000, 4000, np.inf]
 
-# exposure at distance d from the centreline
-#   E(d) = AADT * exp(-d / 300 m)   AADT = 28,112
-# cumulative burden index (0-100)
-#   CBI = mean(pct_rank(E),
-#              pct_rank(low income),
-#              pct_rank(EJ criteria met))`;
+# measured: nearest MassDOT segment AADT (layer 56, by milepost)
+# modelled: exposure at distance d from the centreline
+#   E(d) = nearest_segment_aadt * exp(-d / 300 m)
+# vulnerability index (0-100, no traffic term)
+#   V = mean(pct_rank(low income), pct_rank(EJ criteria met))
+# priority_hotspot = top quintile of V AND in_corridor
+# legacy cumulative burden index, kept for comparison:
+#   CBI = mean(pct_rank(E), pct_rank(low income), pct_rank(EJ criteria))`;
 
 const REPRODUCE = `# 1. Python 3 environment
 pip install numpy pandas geopandas dbfread \\
     scipy matplotlib shapely
 
-# 2. Run the pipeline (TIGER cached in ./cache)
+# 2. Fetch MassDOT traffic (idempotent, caches to ./cache/massdot)
+python fetch_massdot_traffic_aadt.py
+
+# 3. Run the pipeline (TIGER cached in ./cache)
 python route9_deep_analysis.py <data-folder>
 
 # Writes (inputs are never modified):
-#   outputs/master_route9_table.csv
-#   outputs/summary_statistics.txt
+#   outputs/master_route9_table.csv, tract_table_route9.csv
+#   outputs/summary_statistics.txt, advisory_brief.md, data_dictionary.md
 #   charts/figure1_income_traffic_ej.png
 #   charts/figure2_pm25_distribution.png
+#   charts/figure3_priority_hotspots.png
 
-# 3. Rebuild this website from those outputs
+# 4. Rebuild this website from those outputs
 #    (audits the CSV against the report first)
 cd web && npm install && npm run build`;
 
 const LIMITS = [
-  "One AADT station: block-group traffic is a distance-decay model (300 m e-folding), not a measurement; it ignores lane geometry, truck share, grade and wind.",
-  "PM2.5 comes from two monitors (Worcester Summer Street, Uxbridge) and cannot differentiate block groups; it is regional context, not a corridor-specific measurement.",
+  "Route 9 segment AADT is measured by MassDOT, but exposure at a given block group is still a distance-decay model (300 m e-folding) layered on top, not a measurement at that address; it ignores lane geometry, truck share, grade and wind.",
+  "PM2.5 comes from two monitors (Worcester Summer Street, 0.9 km from Route 9 — urban background, not near-road; and Uxbridge) and cannot differentiate block groups; it is regional context, not a corridor-specific measurement.",
+  "The legacy cumulative burden index folds in modelled traffic exposure, which is itself mostly a function of distance, so its distance correlation is partly by construction; the vulnerability index (no traffic term) is the cleaner traffic-independent statement.",
   "The EJ layer lists only EJ-designated block groups. Non-EJ block groups come from Census geometry, so population, % minority and % LEP are unavailable for them.",
   "ACS 2024 tract incomes are applied to block groups (some tracts have wide margins of error: see acs_income_reliable); EJ-table incomes are an older ACS vintage.",
   "Population near Route 9 is interpolated by area (uniform-density assumption). Results are ecological associations, not individual exposure or health effects.",
@@ -85,7 +93,8 @@ export function Methodology() {
       title="A transparent, reproducible spatial pipeline"
       intro={
         <>
-          The whole analysis is one Python script (<code className="rounded bg-white px-1.5 py-0.5 text-[0.85em] ring-1 ring-rule">route9_deep_analysis.py</code>, ~1,080 lines) built on GeoPandas, SciPy and Matplotlib. Every number on this site is printed in{" "}
+          The analysis is two Python scripts: <code className="rounded bg-white px-1.5 py-0.5 text-[0.85em] ring-1 ring-rule">fetch_massdot_traffic_aadt.py</code> pulls and caches MassDOT traffic, and{" "}
+          <code className="rounded bg-white px-1.5 py-0.5 text-[0.85em] ring-1 ring-rule">route9_deep_analysis.py</code> (~1,750 lines) builds everything else on GeoPandas, SciPy and Matplotlib. Every number on this site is printed in{" "}
           <a className="font-medium text-navy-2 underline underline-offset-2" href={LINKS.summaryStatistics} target="_blank" rel="noreferrer">summary_statistics.txt</a> and re-checked against the master CSV each time the site is built.
         </>
       }

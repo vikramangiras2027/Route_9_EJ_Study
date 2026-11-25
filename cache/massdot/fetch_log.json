@@ -1,0 +1,16 @@
+{
+  "fetched": "2026-11-21 14:20:35",
+  "bbox_4326": [
+    -71.99,
+    42.14,
+    -71.55,
+    42.42
+  ],
+  "layers": {
+    "lrs_traffic_segment": "https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/57",
+    "lrs_traffic": "https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/56",
+    "lrs_traffic_station": "https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/RoadInventoryLRS/FeatureServer/2",
+    "yearend_2024": "https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/TrafficInventoryYearEnd/FeatureServer/1",
+    "stations": "https://gis.massdot.state.ma.us/arcgis/rest/services/Roads/TrafficCountLocations/FeatureServer/0"
+  }
+}

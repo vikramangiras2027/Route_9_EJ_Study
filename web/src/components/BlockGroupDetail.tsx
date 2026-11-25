@@ -39,8 +39,8 @@ export function BlockGroupDetail({ bg, pinned }: { bg: BlockGroup | null; pinned
               <Pin className="h-3 w-3" /> Pinned
             </Pill>
           )}
-          {bg.hotspot && (
-            <span className="rounded-full bg-ink px-2.5 py-0.5 text-[0.7rem] font-semibold text-white">Burden hotspot</span>
+          {bg.priorityHotspot && (
+            <span className="rounded-full bg-ink px-2.5 py-0.5 text-[0.7rem] font-semibold text-white">Priority hotspot</span>
           )}
           <Pill color={EJ_COLOR[bg.ejDesc]}>{bg.ejDesc}</Pill>
         </div>
@@ -54,14 +54,18 @@ export function BlockGroupDetail({ bg, pinned }: { bg: BlockGroup | null; pinned
         />
         <Cell label="Residents (EJ BGs)" value={fmtInt(bg.pop)} sub={bg.pop === null ? "not in EJ layer" : undefined} />
         <Cell label="% minority · % LEP" value={bg.pctMinority === null ? "n/a" : `${fmtPct(bg.pctMinority)} · ${fmtPct(bg.pctLep)}`} />
-        <Cell label="Traffic exposure" value={bg.exposure === null ? "n/a" : fmtInt(bg.exposure)} sub="AADT-equiv. veh/day" />
+        <Cell label="Nearest Route 9 segment (measured)" value={bg.nearestSegmentAadt === null ? "n/a" : `${fmtInt(bg.nearestSegmentAadt)} veh/day`} sub={bg.nearestSegmentAadtYear ? `MassDOT, ${bg.nearestSegmentAadtYear}` : "MassDOT"} />
         <Cell label="EJ criteria met" value={bg.ejCount === null ? "n/a" : `${bg.ejCount} of 3`} />
         <div className="col-span-2">
-          <dt className="text-[0.68rem] font-medium uppercase tracking-wider text-ink-3">Cumulative burden index</dt>
+          <dt className="text-[0.68rem] font-medium uppercase tracking-wider text-ink-3">Vulnerability index (income + EJ criteria, no traffic)</dt>
           <dd className="flex items-center gap-3">
-            <span className="w-12 text-[0.98rem] font-semibold text-ink tabular">{bg.cbi === null ? "n/a" : bg.cbi.toFixed(1)}</span>
-            <div className="flex-1">{bg.cbi !== null && <Bar value={bg.cbi} max={100} color="#bd0026" height={8} />}</div>
+            <span className="w-12 text-[0.98rem] font-semibold text-ink tabular">{bg.vulnerability === null ? "n/a" : bg.vulnerability.toFixed(1)}</span>
+            <div className="flex-1">{bg.vulnerability !== null && <Bar value={bg.vulnerability} max={100} color="#bd0026" height={8} />}</div>
           </dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-[0.68rem] font-medium uppercase tracking-wider text-ink-3">Modelled traffic exposure (legacy, distance-decay)</dt>
+          <dd className="text-[0.82rem] text-ink-2">{bg.exposure === null ? "n/a" : `${fmtInt(bg.exposure)} veh/day-equiv.`} <span className="text-ink-3">· legacy burden index {bg.cbi === null ? "n/a" : bg.cbi.toFixed(1)}</span></dd>
         </div>
       </dl>
     </div>

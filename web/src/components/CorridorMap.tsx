@@ -2,13 +2,13 @@ import { memo, useMemo } from "react";
 import { blockGroups, byId, geometry, type BlockGroup } from "../data";
 import { EJ_CATEGORIES, EJ_COLOR, YLGNBU, YLORRD, cssGradient, ramp } from "../lib/colors";
 
-export type MapMetric = "income" | "ej" | "exposure" | "cbi";
+export type MapMetric = "income" | "ej" | "aadt" | "vulnerability";
 
 export const MAP_METRICS: { key: MapMetric; label: string }[] = [
   { key: "income", label: "Household income" },
   { key: "ej", label: "EJ criteria" },
-  { key: "exposure", label: "Traffic exposure" },
-  { key: "cbi", label: "Cumulative burden" },
+  { key: "aadt", label: "Measured traffic" },
+  { key: "vulnerability", label: "Vulnerability (no traffic)" },
 ];
 
 /* ---------- static projection (equirectangular, cos-latitude corrected) ---------- */
@@ -67,7 +67,8 @@ const SCALEBAR_PX = 5 / KM_PER_PX;
 /* ---------- colour logic ---------- */
 const INC_LO = 25_000;
 const INC_HI = 160_000;
-const EXP_MAX = Math.log10(1 + 22_000);
+const AADT_LO = 13_000;
+const AADT_HI = 46_000;
 
 export function fillFor(bg: BlockGroup, metric: MapMetric): string {
   switch (metric) {
@@ -75,10 +76,10 @@ export function fillFor(bg: BlockGroup, metric: MapMetric): string {
       return bg.income === null ? "url(#nodata)" : ramp(YLGNBU, (bg.income - INC_LO) / (INC_HI - INC_LO));
     case "ej":
       return EJ_COLOR[bg.ejDesc] ?? "#ccc";
-    case "exposure":
-      return bg.exposure === null ? "url(#nodata)" : ramp(YLORRD, Math.log10(1 + bg.exposure) / EXP_MAX);
-    case "cbi":
-      return bg.cbi === null ? "url(#nodata)" : ramp(YLORRD, bg.cbi / 100);
+    case "aadt":
+      return bg.nearestSegmentAadt === null ? "url(#nodata)" : ramp(YLORRD, (bg.nearestSegmentAadt - AADT_LO) / (AADT_HI - AADT_LO));
+    case "vulnerability":
+      return bg.vulnerability === null ? "url(#nodata)" : ramp(YLORRD, bg.vulnerability / 100);
   }
 }
 
@@ -97,8 +98,8 @@ export function MapLegend({ metric }: { metric: MapMetric }) {
   }
   const cfg = {
     income: { stops: YLGNBU, lo: "$25k", hi: "$160k+", title: "ACS 2024 tract median household income" },
-    exposure: { stops: YLORRD, lo: "0", hi: "22k", title: "Modelled traffic exposure (AADT-equivalent veh/day, log scale)" },
-    cbi: { stops: YLORRD, lo: "0", hi: "100", title: "Cumulative burden index (0–100)" },
+    aadt: { stops: YLORRD, lo: "13k", hi: "46k", title: "Measured AADT, nearest MassDOT Route 9 segment (veh/day)" },
+    vulnerability: { stops: YLORRD, lo: "0", hi: "100", title: "Vulnerability index: low income + EJ criteria, no traffic term (0–100)" },
   }[metric];
   return (
     <div className="max-w-sm">
@@ -143,7 +144,7 @@ function CorridorMapImpl({
     return m;
   }, [metric]);
 
-  const hotspotPaths = useMemo(() => PATHS.filter((p) => byId.get(p.id)?.hotspot), []);
+  const hotspotPaths = useMemo(() => PATHS.filter((p) => byId.get(p.id)?.priorityHotspot), []);
   const focusId = hoveredId ?? pinnedId;
   const focusPath = focusId ? PATHS.find((p) => p.id === focusId) : undefined;
   const pinnedPath = pinnedId && pinnedId !== focusId ? PATHS.find((p) => p.id === pinnedId) : undefined;

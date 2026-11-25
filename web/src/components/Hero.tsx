@@ -1,9 +1,11 @@
 import { ArrowDown, Clock, Download, FileText } from "lucide-react";
 import { LINKS, SITE } from "../config";
-import { headline } from "../lib/analysis";
-import { traffic } from "../data";
+import { headline, priorityHeadline } from "../lib/analysis";
 import { fmtInt } from "../lib/format";
+import { TRAFFIC_BY_TOWN } from "../data/corridor";
 import { CorridorMap, MapLegend } from "./CorridorMap";
+
+const pooledTraffic = TRAFFIC_BY_TOWN.find((t) => t.town === "Pooled")!;
 
 function Stat({
   value,
@@ -48,9 +50,9 @@ export function Hero() {
             </h1>
             <p className="mt-3 font-serif text-xl italic text-ink-3">{SITE.subtitle}</p>
             <p className="mt-6 max-w-xl text-[1.08rem] leading-relaxed text-ink-2">
-              Across {headline.nBlockGroups} Census block groups, the neighborhoods closest to Route 9 have lower incomes, are more often
-              designated environmental justice populations, and sit in the highest modelled traffic exposure. Explore the evidence, inspect
-              the method, and download everything.
+              Route 9 carries between {fmtInt(pooledTraffic.minAadt)} and {fmtInt(pooledTraffic.maxAadt)} vehicles a day, measured segment by segment by MassDOT.
+              In Worcester, the neighborhoods closest to the road have markedly lower incomes and are overwhelmingly EJ-designated. Explore the
+              evidence, inspect the method, and download everything.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a href="#explorer" className="inline-flex items-center gap-2 rounded-lg bg-ink px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-navy-2">
@@ -73,13 +75,13 @@ export function Hero() {
 
           <figure className="card p-3 sm:p-4">
             <div className="overflow-hidden rounded-lg bg-[#eef3f8]">
-              <CorridorMap metric="income" interactive={false} showHotspots ariaLabel="Map of Worcester and Shrewsbury block groups shaded by median household income, with Route 9 in red and cumulative-burden hotspots outlined" />
+              <CorridorMap metric="income" interactive={false} showHotspots ariaLabel="Map of Worcester and Shrewsbury block groups shaded by median household income, with Route 9 in red and priority block groups outlined" />
             </div>
             <figcaption className="mt-3 flex flex-col gap-2 px-1 pb-1">
               <MapLegend metric="income" />
               <p className="text-[0.75rem] leading-snug text-ink-3">
                 Income by block group (ACS 2024). <span className="font-semibold text-route">Red line:</span> Route 9. <span className="font-semibold text-ink">Dark outlines:</span> the{" "}
-                {headline.hotspots} cumulative-burden hotspots.
+                {priorityHeadline.n} priority block groups &mdash; most vulnerable by income and EJ status, no traffic term, inside 1.5 km.
               </p>
             </figcaption>
           </figure>
@@ -88,17 +90,17 @@ export function Hero() {
         <dl className="mt-12 grid gap-4 sm:grid-cols-2 lg:mt-16 lg:grid-cols-4">
           <Stat
             accent="#c0001a"
-            value={fmtInt(traffic.aadt)}
+            value={`${(pooledTraffic.minAadt / 1000).toFixed(1)}k\u2013${(pooledTraffic.maxAadt / 1000).toFixed(1)}k`}
             unit="vehicles / day"
-            label="Annual average daily traffic on Route 9"
-            note={`MassDOT station M3002W. ${(traffic.westboundShare * 100).toFixed(1)}% runs westbound (${fmtInt(traffic.westbound)} WB vs ${fmtInt(traffic.eastbound)} EB).`}
+            label="Measured traffic along Route 9"
+            note="MassDOT segment counts, Worcester to Shrewsbury (mostly 2024–2025). Lightest in central Worcester, heaviest in Shrewsbury — one station can't describe either end."
           />
           <Stat
             accent="#1d91c0"
             value={`+$${fmtInt(headline.incomeSlopePerKm)}`}
             unit="per km"
             label="Income gradient moving away from Route 9"
-            note="Tract median household income rises with distance (Spearman ρ = +0.47, 95% CI 0.20–0.66)."
+            note="Tract median household income rises with distance (Spearman ρ = +0.47, 95% CI 0.20–0.66, both towns pooled; +0.48 in Worcester alone)."
           />
           <Stat
             accent="#b45309"
@@ -108,9 +110,9 @@ export function Hero() {
           />
           <Stat
             accent="#0f1b2d"
-            value={String(headline.hotspots)}
-            label="Cumulative-burden hotspots"
-            note={`Corridor block groups in the top burden quintile, home to ${fmtInt(headline.hotspotResidents)} EJ-designated residents (${((100 * headline.hotspotResidents) / headline.ejPopTotal).toFixed(1)}%).`}
+            value={String(priorityHeadline.n)}
+            label="Priority block groups to look at first"
+            note={`All in Worcester, ranked by income + EJ criteria alone (no traffic term): ${fmtInt(priorityHeadline.ejResidents)} EJ-designated residents.`}
           />
         </dl>
       </div>
